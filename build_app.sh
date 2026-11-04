@@ -6,20 +6,15 @@ cd "$(dirname "$0")"
 APP="mSIZER.app"
 DEST="$HOME/Applications/Applications Personnelles"
 rm -rf "$APP" build
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" build/icon.iconset
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # Puces Apple Silicon uniquement : code natif arm64 réglé pour la famille M (apple-m1 et suivantes).
 swiftc -O -swift-version 5 -parse-as-library -target arm64-apple-macos15 -Xcc -mcpu=apple-m1 -target-cpu apple-m1 \
   -o "$APP/Contents/MacOS/mSIZER" Sources/*.swift
 
-swift Resources/make_icon.swift build/icon-1024.png
-for s in 16 32 128 256 512; do
-  sips -z $s $s build/icon-1024.png --out build/icon.iconset/icon_${s}x${s}.png >/dev/null
-  sips -z $((s*2)) $((s*2)) build/icon-1024.png --out build/icon.iconset/icon_${s}x${s}@2x.png >/dev/null
-done
-iconutil -c icns build/icon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
+# Icône : sources dans assets/ (régénérer avec « swift assets/make_icon.swift assets/icon-1024.png » puis iconutil).
+cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
-rm -rf build
 
 SIGN="/Volumes/SKYRIM/TOOLS/MAC/_tools/sign_app.sh"
 if [ -x "$SIGN" ]; then "$SIGN" "$APP"; else codesign --force --deep -s - "$APP"; fi
