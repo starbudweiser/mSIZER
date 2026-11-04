@@ -166,7 +166,7 @@ struct OpCard<Content: View>: View {
     private var active: Bool { isOn?.wrappedValue ?? true }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Socle.M.space3) {
+        VStack(alignment: .leading, spacing: Socle.M.space2_5) {
             if let isOn {
                 Toggle(isOn: isOn) { Text(title).socle(Socle.T.title).foregroundStyle(Socle.C.textStrong) }
                     .toggleStyle(.checkbox).tint(Socle.C.accent)
@@ -175,7 +175,7 @@ struct OpCard<Content: View>: View {
             }
             if active { content }
         }
-        .padding(Socle.M.space4)
+        .padding(Socle.M.space3)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Socle.C.surface, in: RoundedRectangle(cornerRadius: Socle.M.radiusLg))
         .overlay(RoundedRectangle(cornerRadius: Socle.M.radiusLg).stroke(Socle.C.border, lineWidth: 1))
@@ -201,6 +201,8 @@ struct ContentView: View {
             .background(Socle.C.surfaceRaised)
             Rectangle().fill(Socle.C.border).frame(height: 1)
             HStack(spacing: 0) {
+                SettingsPanel().frame(width: 380)
+                Rectangle().fill(Socle.C.border).frame(width: 1)
                 if store.items.isEmpty {
                     EmptyState().frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -208,8 +210,6 @@ struct ContentView: View {
                     Rectangle().fill(Socle.C.border).frame(width: 1)
                     PreviewPanel().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                Rectangle().fill(Socle.C.border).frame(width: 1)
-                SettingsPanel().frame(width: 380)
             }
             Rectangle().fill(Socle.C.border).frame(height: 1)
             BottomBar()
@@ -235,7 +235,15 @@ struct ContentView: View {
 struct WindowSetup: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let v = NSView()
-        DispatchQueue.main.async { v.window?.socleCenter(); v.window?.makeKeyAndOrderFront(nil) }
+        DispatchQueue.main.async {
+            guard let w = v.window else { return }
+            let pointer = NSEvent.mouseLocation
+            let screen = NSScreen.screens.first { NSMouseInRect(pointer, $0.frame, false) } ?? NSScreen.main
+            if let zone = screen?.visibleFrame {
+                w.setContentSize(NSSize(width: min(1500, zone.width - 40), height: zone.height - 60))
+            }
+            w.socleCenter(); w.makeKeyAndOrderFront(nil)
+        }
         return v
     }
     func updateNSView(_ nsView: NSView, context: Context) {}
@@ -374,7 +382,7 @@ struct SettingsPanel: View {
     var body: some View {
         let s = $store.settings
         ScrollView {
-            VStack(spacing: Socle.M.space3) {
+            VStack(spacing: Socle.M.space2) {
                 PresetBar()
                 OpCard(title: L.t("op.resize"), isOn: s.resizeOn) {
                     ChoiceGrid(options: ResizeMode.allCases, selection: s.resizeMode, label: { L.t("rs." + $0.rawValue) }, minWidth: 100)
@@ -439,7 +447,7 @@ struct SettingsPanel: View {
                     }
                 }
                 OpCard(title: L.t("op.format"), isOn: nil) {
-                    ChoiceGrid(options: OutFormat.allCases, selection: s.format, label: { $0.label }, minWidth: 66)
+                    ChoiceGrid(options: OutFormat.allCases, selection: s.format, label: { $0.label }, minWidth: 58)
                     let f = store.settings.format
                     if f != .png && f != .tiff {
                         SliderRow(title: L.t("fmt.quality"), value: s.quality, range: 0.1...1) { String(format: "%.0f %%", $0 * 100) }
@@ -457,7 +465,7 @@ struct SettingsPanel: View {
                     NumberRow(title: L.t("ren.start"), value: Binding(get: { Double(store.settings.startNumber) }, set: { store.settings.startNumber = max(0, Int($0)) }))
                 }
                 OpCard(title: L.t("op.output"), isOn: nil) {
-                    ChoiceGrid(options: OutputMode.allCases, selection: s.outputMode, label: { L.t("out." + $0.rawValue) }, minWidth: 100)
+                    ChoiceGrid(options: OutputMode.allCases, selection: s.outputMode, label: { L.t("out." + $0.rawValue) }, minWidth: 150)
                     switch store.settings.outputMode {
                     case .subfolder: Hint(L.t("out.subfolder.help"))
                     case .folder:
