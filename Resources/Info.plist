@@ -40,26 +40,26 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>1.0.1</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.photography</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
-	<key>NSDocumentsFolderUsageDescription</key>
-	<string>mSIZER lit et écrit les photos que vous avez choisies.</string>
 	<key>NSDesktopFolderUsageDescription</key>
+	<string>mSIZER lit et écrit les photos que vous avez choisies.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
 	<string>mSIZER lit et écrit les photos que vous avez choisies.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>mSIZER lit et écrit les photos que vous avez choisies.</string>
-	<key>NSRemovableVolumesUsageDescription</key>
-	<string>mSIZER lit et écrit les photos de vos disques externes.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
 	<key>NSNetworkVolumesUsageDescription</key>
 	<string>mSIZER lit et écrit les photos de vos partages réseau.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>mSIZER lit et écrit les photos de vos disques externes.</string>
 </dict>
 </plist>
