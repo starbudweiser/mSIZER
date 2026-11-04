@@ -20,6 +20,7 @@ mSIZER is made by Starbudweiser & Claude Code (Anthropic). MIT License, © 2026 
 - Rename with a pattern (`{name}`, `{n}`, `{date}`, `{w}`, `{h}`).
 - Destination: `mSIZER` subfolder, another folder, or replace the originals (they go to the Trash). Existing files are never overwritten.
 - Presets (Web, E-mail, Instagram, thumbnails, privacy…) and your own saved presets.
+- Output formats: JPEG, PNG, WebP, HEIC, AVIF, JPEG 2000, TIFF, GIF, BMP, TGA, PSD, PDF, OpenEXR, ICO, ICNS (WebP through a statically linked libwebp; build needs `brew install webp`).
 - Social network presets (Instagram, Facebook, X, LinkedIn, YouTube, TikTok, Pinterest, Snapchat, WhatsApp, Discord, Twitch): posts, stories, profile pictures, banners at the exact size.
 - Languages: French, English, Spanish, Italian (follows the system language). Interface follows the Socle design system.
 - Automatic updates from GitHub releases (signature checked, never during a batch), with a manual check button.

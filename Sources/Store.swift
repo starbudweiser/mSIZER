@@ -60,11 +60,12 @@ final class Store: ObservableObject {
         var mail = Settings(); mail.resizeValue = 1280; mail.quality = 0.8; mail.maxKB = 300; mail.metaMode = .stripAll
         var insta = Settings(); insta.cropOn = true; insta.cropRatio = .r45; insta.resizeMode = .width; insta.resizeValue = 1080; insta.quality = 0.88
         var square = Settings(); square.cropOn = true; square.cropRatio = .square; square.resizeMode = .width; square.resizeValue = 1080; square.quality = 0.88
+        var webp = Settings(); webp.resizeValue = 1920; webp.format = .webp; webp.quality = 0.8
         var heic = Settings(); heic.resizeOn = false; heic.format = .heic; heic.quality = 0.7
         var thumbs = Settings(); thumbs.resizeValue = 400; thumbs.quality = 0.75; thumbs.metaMode = .stripAll
         var privacy = Settings(); privacy.resizeOn = false; privacy.metaMode = .stripAll; privacy.quality = 0.95
         return [BuiltIn(id: "web", settings: web), BuiltIn(id: "mail", settings: mail), BuiltIn(id: "insta", settings: insta),
-                BuiltIn(id: "square", settings: square), BuiltIn(id: "heic", settings: heic), BuiltIn(id: "thumbs", settings: thumbs),
+                BuiltIn(id: "square", settings: square), BuiltIn(id: "webp", settings: webp), BuiltIn(id: "heic", settings: heic), BuiltIn(id: "thumbs", settings: thumbs),
                 BuiltIn(id: "privacy", settings: privacy)]
     }()
 

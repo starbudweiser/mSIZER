@@ -504,11 +504,13 @@ struct SettingsPanel: View {
                 FoldCard(title: L.t("op.format"), key: "format", summary: formatSummary) {
                     ChoiceGrid(options: OutFormat.allCases, selection: s.format, label: { $0.label }, minWidth: 58)
                     let f = store.settings.format
-                    if f != .png && f != .tiff {
+                    if f.hasQuality {
                         SliderRow(title: L.t("fmt.quality"), value: s.quality, range: 0.1...1) { String(format: "%.0f %%", $0 * 100) }
                         NumberRow(title: L.t("fmt.maxsize"), value: Binding(get: { Double(store.settings.maxKB) }, set: { store.settings.maxKB = max(0, Int($0)) }))
                         Hint(L.t("fmt.maxsize.help"))
+                        if f == .webp { Hint(L.t("fmt.webp.help")) }
                     }
+                    if f.isIcon { Hint(L.t("fmt.icon.help")) }
                     Check(title: L.t("fmt.srgb"), help: L.t("fmt.srgb.help"), isOn: s.toSRGB)
                 }
                 FoldCard(title: L.t("op.meta"), key: "meta", summary: L.t("meta." + (store.settings.metaMode == .stripAll ? "strip" : store.settings.metaMode.rawValue))) {
@@ -542,7 +544,7 @@ struct SettingsPanel: View {
     private var formatSummary: String {
         let st = store.settings
         var out = st.format.label
-        if st.format != .png && st.format != .tiff {
+        if st.format.hasQuality {
             out += " · \(Int(st.quality * 100)) %"
             if st.maxKB > 0 { out += " · ≤ \(st.maxKB) Ko" }
         }

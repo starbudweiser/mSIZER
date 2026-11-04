@@ -1,6 +1,7 @@
 // mSIZER — réglages de traitement et éléments de la liste.
 import Foundation
 import AppKit
+import UniformTypeIdentifiers
 
 enum ResizeMode: String, Codable, CaseIterable { case longest, width, height, percent, fit, fill }
 enum CropRatio: String, Codable, CaseIterable { case square, r43, r32, r169, r45, r916, custom, manual
@@ -125,15 +126,52 @@ struct NormRect: Codable, Equatable {
     }
 }
 enum Rotation: Int, Codable, CaseIterable { case none = 0, cw = 90, half = 180, ccw = 270 }
-enum OutFormat: String, Codable, CaseIterable { case original, jpeg, png, heic, tiff
+enum OutFormat: String, Codable, CaseIterable { case original, jpeg, png, webp, heic, avif, jp2, tiff, gif, bmp, tga, psd, pdf, exr, ico, icns
     var label: String {
         switch self {
         case .original: L.t("fmt.original")
-        case .jpeg: "JPEG"
-        case .png: "PNG"
-        case .heic: "HEIC"
-        case .tiff: "TIFF"
+        case .jp2: "JP2"
+        case .webp: "WebP"
+        default: rawValue.uppercased()
         }
+    }
+    /// Type ImageIO d'écriture (nil : « Original » et WebP, qui a son propre encodeur).
+    var utType: UTType? {
+        switch self {
+        case .original, .webp: nil
+        case .jpeg: .jpeg
+        case .png: .png
+        case .heic: .heic
+        case .avif: UTType("public.avif")
+        case .jp2: UTType("public.jpeg-2000")
+        case .tiff: .tiff
+        case .gif: .gif
+        case .bmp: .bmp
+        case .tga: UTType("com.truevision.tga-image")
+        case .psd: UTType("com.adobe.photoshop-image")
+        case .pdf: .pdf
+        case .exr: UTType("com.ilm.openexr-image")
+        case .ico: .ico
+        case .icns: .icns
+        }
+    }
+    var fileExtension: String {
+        switch self {
+        case .jpeg: "jpg"
+        case .tiff: "tiff"
+        case .original: "jpg"
+        default: rawValue
+        }
+    }
+    /// Formats à compression réglable par la qualité (et la limite de poids).
+    var hasQuality: Bool { [.jpeg, .heic, .avif, .webp, .jp2].contains(self) }
+    var isIcon: Bool { self == .ico || self == .icns }
+    var flattensAlpha: Bool { self == .jpeg || self == .bmp }
+    /// Format correspondant au type d'un fichier source, s'il sait être écrit.
+    static func from(_ t: UTType?) -> OutFormat? {
+        guard let t else { return nil }
+        if t.conforms(to: .webP) { return .webp }
+        return allCases.first { $0 != .original && $0.utType == t }
     }
 }
 /// Neuf positions : rangée = rawValue / 3 (haut, milieu, bas), colonne = rawValue % 3 (gauche, centre, droite).

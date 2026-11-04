@@ -113,6 +113,33 @@ s.rotateOn = true; s.rotation = .cw; s.resizeOn = false
 r = Engine.process(src, index: 0, s, Engine.prepare(s))
 check(r.url.flatMap(size).map { $0 == (2000, 3000) } ?? false, "rotation 90°")
 
+// --- Tous les formats de sortie
+let outDir = tmp.appendingPathComponent("formats")
+for f in OutFormat.allCases where f != .original {
+    s = Settings(); s.outputMode = .folder; s.outputFolder = outDir.path; s.format = f; s.resizeMode = .width; s.resizeValue = 600
+    let res = Engine.process(src, index: 0, s, Engine.prepare(s))
+    guard let u = res.url, res.error == nil else { check(false, "\(f.rawValue) : \(res.error ?? "pas de fichier")"); continue }
+    check(u.pathExtension == f.fileExtension, "\(f.rawValue) : extension \(u.pathExtension)")
+    if f == .pdf || f == .psd || f == .exr || f == .tga { check(res.bytesOut > 0, "\(f.rawValue) non vide"); continue }
+    if f.isIcon { let d = size(u); check(d != nil && d!.0 == d!.1, "\(f.rawValue) carré : \(String(describing: d))"); continue }
+    check(size(u).map { $0 == (600, 400) } ?? false, "\(f.rawValue) : dimensions \(String(describing: size(u)))")
+}
+// WebP : lisible, qualité et limite de poids
+s = Settings(); s.outputMode = .folder; s.outputFolder = outDir.path; s.format = .webp; s.resizeMode = .width; s.resizeValue = 1000
+s.quality = 0.9; let w90 = Engine.process(src, index: 0, s, Engine.prepare(s)).bytesOut
+s.quality = 0.3; let w30 = Engine.process(src, index: 0, s, Engine.prepare(s)).bytesOut
+check(w30 > 0 && w30 < w90, "qualité WebP : \(w30) < \(w90)")
+s.quality = 1; let wl = Engine.process(src, index: 0, s, Engine.prepare(s)).bytesOut
+check(wl > w90, "WebP sans perte plus lourd : \(wl)")
+s.quality = 0.9; s.maxKB = 22; let wm = Engine.process(src, index: 0, s, Engine.prepare(s))
+check(wm.error == nil && wm.bytesOut <= 22_000 && wm.bytesOut > 15_000, "WebP limité à 22 Ko : \(wm.bytesOut)")
+// ICO : grande photo ramenée à 256 px ; « Original » garde le format source
+s = Settings(); s.outputMode = .folder; s.outputFolder = outDir.path; s.format = .ico; s.resizeOn = false
+let ico = Engine.process(src, index: 0, s, Engine.prepare(s))
+check(ico.url.flatMap(size).map { $0 == (256, 256) } ?? false, "ICO 256×256 : \(String(describing: ico.url.flatMap(size)))")
+s.format = .original; s.resizeOn = true
+check(Engine.process(src, index: 0, s, Engine.prepare(s)).url?.pathExtension == "jpg", "Original garde le JPEG")
+
 // --- Traductions : mêmes clés dans les quatre langues
 let fr = Set(L.tables["fr"]!.keys)
 for lang in ["en", "es", "it"] {

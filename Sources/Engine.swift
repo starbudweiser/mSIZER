@@ -234,25 +234,26 @@ enum Engine {
 
     // MARK: Encodage
 
-    static func targetType(_ s: Settings, source: UTType?) -> UTType {
-        switch s.format {
-        case .jpeg: return .jpeg
-        case .png: return .png
-        case .heic: return .heic
-        case .tiff: return .tiff
-        case .original:
-            if let t = source, [UTType.jpeg, .png, .heic, .tiff].contains(t) { return t }
-            return .jpeg
-        }
+    /// Format réellement écrit : celui choisi, ou celui du fichier source pour « Original » (JPEG si on ne sait pas l'écrire).
+    static func targetFormat(_ s: Settings, source: UTType?) -> OutFormat {
+        s.format != .original ? s.format : OutFormat.from(source) ?? .jpeg
     }
 
-    static func extensionFor(_ t: UTType, original: URL, format: OutFormat) -> String {
-        if format == .original, UTType(filenameExtension: original.pathExtension) == t { return original.pathExtension }
-        switch t {
-        case .jpeg: return "jpg"
-        case .tiff: return "tiff"
-        default: return t.preferredFilenameExtension ?? "jpg"
-        }
+    static func extensionFor(_ f: OutFormat, original: URL, setting: OutFormat) -> String {
+        if setting == .original, OutFormat.from(UTType(filenameExtension: original.pathExtension)) == f { return original.pathExtension }
+        return f.fileExtension
+    }
+
+    /// ICO et ICNS n'acceptent que des carrés de tailles précises : l'image est centrée sur un carré transparent
+    /// (ICO jusqu'à 256 px, ICNS 16 à 512 px).
+    static func squared(_ ci: CIImage, for f: OutFormat) -> CIImage {
+        let w = ci.extent.width, h = ci.extent.height, side = max(w, h)
+        let allowed: [CGFloat] = f == .ico ? [256] : [16, 32, 64, 128, 256, 512]
+        let target = f == .ico ? min(256, side.rounded()) : (allowed.last { $0 <= side } ?? 16)
+        let canvas = CGRect(x: 0, y: 0, width: side, height: side)
+        let placed = ci.transformed(by: CGAffineTransform(translationX: (side - w) / 2 - ci.extent.minX, y: (side - h) / 2 - ci.extent.minY))
+        let square = origin(placed.composited(over: CIImage(color: .clear).cropped(to: canvas)).cropped(to: canvas))
+        return side == target ? square : scaled(square, toW: Int(target), h: Int(target))
     }
 
     static func metadata(_ r: Rendered, _ s: Settings) -> [String: Any] {
@@ -275,8 +276,10 @@ enum Engine {
         return out
     }
 
-    static func encode(_ cg: CGImage, type: UTType, quality: Double, maxKB: Int, props: [String: Any]) -> (data: Data, limitReached: Bool)? {
+    static func encode(_ cg: CGImage, format: OutFormat, quality: Double, maxKB: Int, props: [String: Any]) -> (data: Data, limitReached: Bool)? {
         func once(_ q: Double?) -> Data? {
+            if format == .webp { return WebPEncoder.encode(cg, quality: q ?? 1) }
+            guard let type = format.utType else { return nil }
             let data = NSMutableData()
             guard let dest = CGImageDestinationCreateWithData(data, type.identifier as CFString, 1, nil) else { return nil }
             var p = props
@@ -284,12 +287,11 @@ enum Engine {
             CGImageDestinationAddImage(dest, cg, p as CFDictionary)
             return CGImageDestinationFinalize(dest) ? data as Data : nil
         }
-        let lossy = type == .jpeg || type == .heic
-        guard lossy else { return once(nil).map { ($0, true) } }
+        guard format.hasQuality else { return once(nil).map { ($0, true) } }
         guard var best = once(quality) else { return nil }
         guard maxKB > 0, best.count > maxKB * 1000 else { return (best, true) }
         // Recherche dichotomique de la meilleure qualité qui tient dans la limite.
-        var lo = 0.05, hi = quality
+        var lo = 0.05, hi = min(quality, 0.99)
         guard let floor = once(lo) else { return (best, false) }
         if floor.count > maxKB * 1000 { return (floor, false) }
         best = floor
@@ -324,15 +326,16 @@ enum Engine {
         autoreleasepool {
             do {
                 let r = try render(url, s, prep)
-                let type = targetType(s, source: r.sourceType)
+                let format = targetFormat(s, source: r.sourceType)
                 var img = r.image
-                if type == .jpeg {      // JPEG sans transparence : fond blanc
+                if format.flattensAlpha {      // formats sans transparence : fond blanc
                     img = img.composited(over: CIImage(color: .white).cropped(to: img.extent))
                 }
+                if format.isIcon { img = squared(img, for: format) }
                 guard let cg = context.createCGImage(img, from: img.extent, format: .RGBA8, colorSpace: r.colorSpace) else { throw EngineError.encode }
-                guard let (data, reached) = encode(cg, type: type, quality: s.quality, maxKB: s.maxKB, props: metadata(r, s)) else { throw EngineError.encode }
+                guard let (data, reached) = encode(cg, format: format, quality: s.quality, maxKB: s.maxKB, props: metadata(r, s)) else { throw EngineError.encode }
 
-                let ext = extensionFor(type, original: url, format: s.format)
+                let ext = extensionFor(format, original: url, setting: s.format)
                 let stem = fileStem(for: url, index: index, w: r.width, h: r.height, s)
                 let dir: URL
                 switch s.outputMode {
