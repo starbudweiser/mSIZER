@@ -3,7 +3,7 @@ import Foundation
 import AppKit
 
 enum ResizeMode: String, Codable, CaseIterable { case longest, width, height, percent, fit, fill }
-enum CropRatio: String, Codable, CaseIterable { case square, r43, r32, r169, r45, r916, custom
+enum CropRatio: String, Codable, CaseIterable { case square, r43, r32, r169, r45, r916, custom, manual
     /// Rapport largeur / hauteur (nil si personnalisé : voir Settings).
     var ratio: Double? {
         switch self {
@@ -13,7 +13,7 @@ enum CropRatio: String, Codable, CaseIterable { case square, r43, r32, r169, r45
         case .r169: 16.0 / 9
         case .r45: 4.0 / 5
         case .r916: 9.0 / 16
-        case .custom: nil
+        case .custom, .manual: nil
         }
     }
     var label: String {
@@ -25,7 +25,103 @@ enum CropRatio: String, Codable, CaseIterable { case square, r43, r32, r169, r45
         case .r45: "4:5"
         case .r916: "9:16"
         case .custom: L.t("crop.custom")
+        case .manual: L.t("crop.manual")
         }
+    }
+}
+/// Verrouillage du rapport pendant le recadrage manuel (« output » : rapport de la taille de sortie).
+enum CropLock: String, Codable, CaseIterable { case free, square, r43, r32, r169, r45, r916, output
+    var ratio: Double? {
+        switch self {
+        case .free, .output: nil
+        case .square: 1
+        case .r43: 4.0 / 3
+        case .r32: 3.0 / 2
+        case .r169: 16.0 / 9
+        case .r45: 4.0 / 5
+        case .r916: 9.0 / 16
+        }
+    }
+    var label: String {
+        switch self {
+        case .free: L.t("crop.lock.free")
+        case .output: L.t("crop.lock.out")
+        case .square: "1:1"
+        case .r43: "4:3"
+        case .r32: "3:2"
+        case .r169: "16:9"
+        case .r45: "4:5"
+        case .r916: "9:16"
+        }
+    }
+}
+
+/// Rectangle de recadrage en fractions de l'image (origine en haut à gauche), indépendant de la taille de la photo.
+struct NormRect: Codable, Equatable {
+    var x = 0.0, y = 0.0, w = 1.0, h = 1.0
+    static let minSize = 0.03
+    enum Handle: CaseIterable { case tl, t, tr, l, r, bl, b, br
+        var left: Bool { self == .tl || self == .l || self == .bl }
+        var right: Bool { self == .tr || self == .r || self == .br }
+        var top: Bool { self == .tl || self == .t || self == .tr }
+        var bottom: Bool { self == .bl || self == .b || self == .br }
+    }
+
+    private static func clamp(_ v: Double, _ lo: Double, _ hi: Double) -> Double { min(max(v, lo), max(lo, hi)) }
+
+    /// Plus grand rectangle de rapport `ratio` (largeur/hauteur en pixels) contenu dans celui-ci, de même centre.
+    /// `aspect` : largeur/hauteur de la photo.
+    func fitted(to ratio: Double, aspect: Double) -> NormRect {
+        var nw = w, nh = h
+        if nw * aspect / nh > ratio { nw = nh * ratio / aspect } else { nh = nw * aspect / ratio }
+        let cx = x + w / 2, cy = y + h / 2
+        return NormRect(x: Self.clamp(cx - nw / 2, 0, 1 - nw), y: Self.clamp(cy - nh / 2, 0, 1 - nh), w: nw, h: nh)
+    }
+
+    /// Rectangle tiré depuis un coin fixe `a` jusqu'au point `p` (fractions de l'image), libre ou verrouillé au rapport `lock`.
+    static func corner(from a: CGPoint, to p: CGPoint, lock: Double?, aspect: Double) -> NormRect {
+        let px = clamp(p.x, 0, 1), py = clamp(p.y, 0, 1)
+        let sx = px >= a.x ? 1.0 : -1.0, sy = py >= a.y ? 1.0 : -1.0
+        var w = abs(px - a.x), h = abs(py - a.y)
+        if let r = lock {
+            let k = aspect / r                       // hauteur = largeur × k
+            w = max(w, h / k)
+            w = min(w, sx > 0 ? 1 - a.x : a.x, (sy > 0 ? 1 - a.y : a.y) / k)
+            w = max(w, minSize); h = w * k
+        } else { w = max(w, minSize); h = max(h, minSize) }
+        return NormRect(x: clamp(sx > 0 ? a.x : a.x - w, 0, 1 - w), y: clamp(sy > 0 ? a.y : a.y - h, 0, 1 - h), w: w, h: h)
+    }
+
+    /// Rectangle après glissement d'une poignée jusqu'au point `p`.
+    func resized(_ handle: Handle, to p: CGPoint, lock: Double?, aspect: Double) -> NormRect {
+        let px = Self.clamp(p.x, 0, 1), py = Self.clamp(p.y, 0, 1)
+        if let r = lock {
+            let k = aspect / r
+            switch handle {
+            case .tl: return Self.corner(from: CGPoint(x: x + w, y: y + h), to: p, lock: lock, aspect: aspect)
+            case .tr: return Self.corner(from: CGPoint(x: x, y: y + h), to: p, lock: lock, aspect: aspect)
+            case .bl: return Self.corner(from: CGPoint(x: x + w, y: y), to: p, lock: lock, aspect: aspect)
+            case .br: return Self.corner(from: CGPoint(x: x, y: y), to: p, lock: lock, aspect: aspect)
+            case .l, .r:
+                let ax = handle == .l ? x + w : x
+                let nw = max(Self.minSize, min(abs(px - ax), handle == .l ? ax : 1 - ax, 1 / k)), nh = nw * k
+                return NormRect(x: handle == .l ? ax - nw : ax, y: Self.clamp(y + h / 2 - nh / 2, 0, 1 - nh), w: nw, h: nh)
+            case .t, .b:
+                let ay = handle == .t ? y + h : y
+                let nh = max(Self.minSize * k, min(abs(py - ay), handle == .t ? ay : 1 - ay, k)), nw = nh / k
+                return NormRect(x: Self.clamp(x + w / 2 - nw / 2, 0, 1 - nw), y: handle == .t ? ay - nh : ay, w: nw, h: nh)
+            }
+        }
+        var l = x, t = y, rt = x + w, b = y + h
+        if handle.left { l = min(px, rt - Self.minSize) }
+        if handle.right { rt = max(px, l + Self.minSize) }
+        if handle.top { t = min(py, b - Self.minSize) }
+        if handle.bottom { b = max(py, t + Self.minSize) }
+        return NormRect(x: l, y: t, w: rt - l, h: b - t)
+    }
+
+    func moved(dx: Double, dy: Double) -> NormRect {
+        NormRect(x: Self.clamp(x + dx, 0, 1 - w), y: Self.clamp(y + dy, 0, 1 - h), w: w, h: h)
     }
 }
 enum Rotation: Int, Codable, CaseIterable { case none = 0, cw = 90, half = 180, ccw = 270 }
@@ -58,6 +154,8 @@ struct Settings: Codable, Equatable {
     var cropW: Double = 16
     var cropH: Double = 10
     var cropAnchor: Anchor = .center
+    var cropRect = NormRect()                // recadrage manuel (fractions de l'image tournée)
+    var cropLock: CropLock = .free
 
     var rotateOn = false
     var rotation: Rotation = .none
@@ -95,6 +193,12 @@ struct Settings: Codable, Equatable {
     var outputMode: OutputMode = .subfolder
     var outputFolder = ""
 
+    /// Rapport imposé au recadrage manuel (largeur/hauteur), nil si libre.
+    var lockRatio: Double? {
+        guard cropLock == .output else { return cropLock.ratio }
+        return resizeOn && (resizeMode == .fit || resizeMode == .fill) && resizeValue > 0 && resizeValue2 > 0 ? resizeValue / resizeValue2 : nil
+    }
+
     /// Relit des réglages enregistrés par une autre version : les clés absentes gardent leur valeur par défaut.
     static func decodeLenient(_ data: Data) -> Settings? {
         guard var base = (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(Settings()))) as? [String: Any],
@@ -128,7 +232,38 @@ struct PhotoItem: Identifiable {
     var bytes = 0
     var thumb: NSImage?
     var status: Status = .pending
+    var cropRect: NormRect?                  // cadrage propre à cette photo (recadrage manuel)
     var name: String { url.lastPathComponent }
+}
+
+/// Tailles des photos et avatars des réseaux sociaux : exportées en « Remplir » à la taille exacte, avec cadrage manuel verrouillé.
+enum Social {
+    struct Spec: Identifiable { let kind: String; let w: Int; let h: Int; var id: String { "\(kind)\(w)x\(h)" } }
+    struct Network: Identifiable { let name: String; let specs: [Spec]; var id: String { name } }
+
+    private static func s(_ kind: String, _ w: Int, _ h: Int) -> Spec { Spec(kind: kind, w: w, h: h) }
+
+    static let networks: [Network] = [
+        Network(name: "Instagram", specs: [s("square", 1080, 1080), s("portrait", 1080, 1350), s("landscape", 1080, 566), s("story", 1080, 1920), s("profile", 320, 320)]),
+        Network(name: "Facebook", specs: [s("post", 1200, 630), s("story", 1080, 1920), s("cover", 1640, 624), s("profile", 400, 400)]),
+        Network(name: "X", specs: [s("post", 1600, 900), s("banner", 1500, 500), s("profile", 400, 400)]),
+        Network(name: "LinkedIn", specs: [s("post", 1200, 627), s("banner", 1584, 396), s("profile", 400, 400)]),
+        Network(name: "YouTube", specs: [s("thumb", 1280, 720), s("banner", 2560, 1440), s("profile", 800, 800)]),
+        Network(name: "TikTok", specs: [s("story", 1080, 1920), s("profile", 200, 200)]),
+        Network(name: "Pinterest", specs: [s("pin", 1000, 1500), s("profile", 400, 400)]),
+        Network(name: "Snapchat", specs: [s("story", 1080, 1920)]),
+        Network(name: "WhatsApp", specs: [s("profile", 500, 500)]),
+        Network(name: "Discord", specs: [s("profile", 512, 512), s("banner", 960, 540)]),
+        Network(name: "Twitch", specs: [s("profile", 256, 256), s("banner", 1200, 480)]),
+    ]
+
+    static func settings(_ spec: Spec) -> Settings {
+        var s = Settings()
+        s.resizeOn = true; s.resizeMode = .fill; s.resizeValue = Double(spec.w); s.resizeValue2 = Double(spec.h); s.noEnlarge = false
+        s.cropOn = true; s.cropRatio = .manual; s.cropLock = .output
+        s.format = .jpeg; s.quality = 0.9; s.metaMode = .noGPS
+        return s
+    }
 }
 
 enum Format {

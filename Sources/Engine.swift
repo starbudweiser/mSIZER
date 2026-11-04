@@ -57,7 +57,12 @@ enum Engine {
         if s.rotateOn, s.rotation == .cw || s.rotation == .ccw { swap(&w, &h) }
         let ax = [0.0, 0.5, 1.0][s.cropAnchor.rawValue % 3], ay = [0.0, 0.5, 1.0][s.cropAnchor.rawValue / 3]
         var crop = CGRect(x: 0, y: 0, width: w, height: h)
-        if s.cropOn, let r = s.cropRatio.ratio ?? (s.cropH > 0 ? s.cropW / s.cropH : nil), r > 0 {
+        if s.cropOn, s.cropRatio == .manual {
+            var n = s.cropRect
+            if let r = s.lockRatio { n = n.fitted(to: r, aspect: w / h) }
+            let cw = max(1, min(w, (n.w * w).rounded())), ch = max(1, min(h, (n.h * h).rounded()))
+            crop = CGRect(x: max(0, min(w - cw, (n.x * w).rounded())), y: max(0, min(h - ch, (n.y * h).rounded())), width: cw, height: ch)
+        } else if s.cropOn, let r = s.cropRatio.ratio ?? (s.cropH > 0 ? s.cropW / s.cropH : nil), r > 0 {
             var cw = w, ch = h
             if w / h > r { cw = (h * r).rounded() } else { ch = (w / r).rounded() }
             cw = max(1, min(w, cw)); ch = max(1, min(h, ch))

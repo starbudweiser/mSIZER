@@ -10,7 +10,13 @@ final class Store: ObservableObject {
 
     @Published var items: [PhotoItem] = []
     @Published var selection: UUID? { didSet { schedulePreview() } }
-    @Published var settings: Settings { didSet { if settings != oldValue { persist(); schedulePreview() } } }
+    @Published var settings: Settings { didSet {
+        guard settings != oldValue else { return }
+        // Recadrage manuel activé : l'onglet « Avant » porte les poignées.
+        if settings.cropOn, settings.cropRatio == .manual, !(oldValue.cropOn && oldValue.cropRatio == .manual) { showAfter = false }
+        persist(); schedulePreview()
+    } }
+    @Published var showAfter = true
     @Published var presets: [Preset] = []
     @Published var processing = false
     @Published var progress = 0.0
@@ -146,6 +152,42 @@ final class Store: ObservableObject {
 
     var selectedItem: PhotoItem? { items.first { $0.id == selection } }
 
+    // MARK: Recadrage manuel
+
+    /// Cadrage de la photo choisie : le sien, sinon celui par défaut des réglages.
+    var currentCrop: NormRect { selectedItem?.cropRect ?? settings.cropRect }
+
+    func setCrop(_ r: NormRect) {
+        guard let i = items.firstIndex(where: { $0.id == selection }) else { return }
+        items[i].cropRect = r
+        schedulePreview()
+    }
+
+    /// Reprend le cadrage de la photo choisie pour toutes les autres.
+    func applyCropToAll() {
+        let r = currentCrop
+        settings.cropRect = r
+        for i in items.indices { items[i].cropRect = nil }
+        schedulePreview()
+    }
+
+    func resetCrop() { setCrop(NormRect()) }
+
+    /// Remet le cadrage dans le rapport verrouillé quand le verrou change.
+    func relockCrop() {
+        guard let r = settings.lockRatio, let it = selectedItem, it.width > 0, it.height > 0 else { return }
+        let rotated = settings.rotateOn && (settings.rotation == .cw || settings.rotation == .ccw)
+        let aspect = rotated ? Double(it.height) / Double(it.width) : Double(it.width) / Double(it.height)
+        setCrop(currentCrop.fitted(to: r, aspect: aspect))
+    }
+
+    /// Réglages à appliquer à une photo : les siens pour le cadrage.
+    func settings(for it: PhotoItem) -> Settings {
+        var s = settings
+        if let r = it.cropRect { s.cropRect = r }
+        return s
+    }
+
     // MARK: Lot
 
     func start() {
@@ -155,7 +197,7 @@ final class Store: ObservableObject {
         let totalIn = items.reduce(0) { $0 + $1.bytes }
         for i in items.indices { items[i].status = .pending }
         let s = settings
-        let jobs = items.enumerated().map { ($0.offset, $0.element.id, $0.element.url) }
+        let jobs = items.enumerated().map { ($0.offset, $0.element.id, $0.element.url, $0.element.cropRect) }
         let t0 = Date()
         batch = Task.detached(priority: .userInitiated) {
             let prep = Engine.prepare(s)
@@ -164,8 +206,10 @@ final class Store: ObservableObject {
                 var next = 0
                 func feed() {
                     guard next < jobs.count, !Task.isCancelled else { return }
-                    let (i, id, url) = jobs[next]; next += 1
-                    group.addTask { (id, Engine.process(url, index: i, s, prep)) }
+                    let (i, id, url, crop) = jobs[next]; next += 1
+                    var sj = s
+                    if let crop { sj.cropRect = crop }
+                    group.addTask { (id, Engine.process(url, index: i, sj, prep)) }
                 }
                 for _ in 0..<Engine.workers { feed() }
                 while let (id, r) = await group.next() {
@@ -207,7 +251,7 @@ final class Store: ObservableObject {
     private func schedulePreview() {
         previewTask?.cancel()
         guard let it = selectedItem else { previewAfter = nil; previewBefore = nil; previewInfo = ""; return }
-        let s = settings, url = it.url, id = it.id
+        let s = settings(for: it), url = it.url, id = it.id
         previewBusy = true
         previewTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 250_000_000)
@@ -218,9 +262,17 @@ final class Store: ObservableObject {
                       let cg = Engine.context.createCGImage(r.image, from: r.image.extent, format: .RGBA8, colorSpace: r.colorSpace) else { return (nil, nil, "") }
                 let after = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
                 var before: NSImage?
+                if s.cropOn, s.cropRatio == .manual, s.rotateOn, s.rotation != .none || s.flipH || s.flipV {
+                    // Les poignées de recadrage se règlent sur l'image déjà tournée.
+                    var rs = Settings(); rs.resizeOn = false; rs.rotateOn = true; rs.rotation = s.rotation; rs.flipH = s.flipH; rs.flipV = s.flipV
+                    if let rr = try? Engine.render(url, rs, Engine.prepare(rs), previewMax: 1400),
+                       let b = Engine.context.createCGImage(rr.image, from: rr.image.extent, format: .RGBA8, colorSpace: rr.colorSpace) {
+                        before = NSImage(cgImage: b, size: NSSize(width: b.width, height: b.height))
+                    }
+                }
                 let opts: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
                                              kCGImageSourceThumbnailMaxPixelSize: 1400]
-                if let src = CGImageSourceCreateWithURL(url as CFURL, nil), let b = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) {
+                if before == nil, let src = CGImageSourceCreateWithURL(url as CFURL, nil), let b = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) {
                     before = NSImage(cgImage: b, size: NSSize(width: b.width, height: b.height))
                 }
                 let full = Engine.plan(width: Self.dims(url).0, height: Self.dims(url).1, s)

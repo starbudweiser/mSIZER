@@ -383,13 +383,14 @@ struct PhotoRow: View {
 
 struct PreviewPanel: View {
     @ObservedObject var store = Store.shared
-    @State private var showAfter = true
 
     var body: some View {
+        let showAfter = store.showAfter
+        let editing = !showAfter && store.settings.cropOn && store.settings.cropRatio == .manual && store.selectedItem != nil
         VStack(spacing: 0) {
             HStack(spacing: Socle.M.space3) {
                 SocleSegmented(options: [false, true], selection: showAfter, label: { $0 ? L.t("pv.after") : L.t("pv.before") },
-                               tone: { _ in .strong }) { showAfter = $0 }
+                               tone: { _ in .strong }) { store.showAfter = $0 }
                 Spacer()
                 if !store.previewInfo.isEmpty {
                     Text(L.t("pv.size", store.previewInfo)).socle(Socle.T.monoSm).foregroundStyle(Socle.C.accentText)
@@ -400,7 +401,9 @@ struct PreviewPanel: View {
             ZStack {
                 Socle.C.bgSunken
                 if let img = showAfter ? store.previewAfter : store.previewBefore {
-                    Image(nsImage: img).resizable().scaledToFit().padding(Socle.M.space6)
+                    Image(nsImage: img).resizable().scaledToFit()
+                        .overlay { if editing { CropOverlay().padding(-CropOverlay.inset) } }
+                        .padding(Socle.M.space6)
                 } else if store.selectedItem == nil {
                     Text(L.t("pv.none")).socle(Socle.T.body).foregroundStyle(Socle.C.textMuted)
                 }
@@ -434,6 +437,20 @@ struct SettingsPanel: View {
                 }
                 OpCard(title: L.t("op.crop"), isOn: s.cropOn) {
                     ChoiceGrid(options: CropRatio.allCases, selection: s.cropRatio, label: { $0.label }, minWidth: 64)
+                    if store.settings.cropRatio == .manual {
+                        let st = store.settings
+                        let outputOK = st.resizeOn && (st.resizeMode == .fit || st.resizeMode == .fill) && st.resizeValue > 0 && st.resizeValue2 > 0
+                        ChoiceGrid(options: CropLock.allCases.filter { $0 != .output || outputOK }, selection: s.cropLock,
+                                   label: { $0.label }, minWidth: 56)
+                        Hint(L.t("crop.manual.help"))
+                        HStack(spacing: Socle.M.space2) {
+                            Button(L.t("crop.full")) { store.resetCrop(); store.relockCrop() }.buttonStyle(SocleButtonStyle(.secondary))
+                            Button(L.t("crop.all")) { store.applyCropToAll() }.buttonStyle(SocleButtonStyle(.secondary))
+                        }
+                        if store.showAfter {
+                            Button(L.t("crop.show")) { store.showAfter = false }.buttonStyle(SocleButtonStyle(.secondary))
+                        }
+                    }
                     if store.settings.cropRatio == .custom {
                         HStack {
                             NumberRow(title: "", value: s.cropW)
@@ -441,10 +458,12 @@ struct SettingsPanel: View {
                             NumberRow(title: "", value: s.cropH)
                         }
                     }
-                    HStack {
-                        Text(L.t("crop.anchor")).socle(Socle.T.label).foregroundStyle(Socle.C.textMuted)
-                        Spacer()
-                        AnchorPicker(selection: s.cropAnchor)
+                    if store.settings.cropRatio != .manual {
+                        HStack {
+                            Text(L.t("crop.anchor")).socle(Socle.T.label).foregroundStyle(Socle.C.textMuted)
+                            Spacer()
+                            AnchorPicker(selection: s.cropAnchor)
+                        }
                     }
                 }
                 OpCard(title: L.t("op.rotate"), isOn: s.rotateOn) {
@@ -558,6 +577,20 @@ struct PresetBar: View {
                 Button(L.t("preset.save")) { newName = ""; asking = true }
             } label: {
                 Text(L.t("preset.pick")).socle(Socle.T.button).foregroundStyle(Socle.C.textStrong)
+                    .frame(maxWidth: .infinity, minHeight: Socle.M.sizeControlLg)
+                    .background(Socle.C.control, in: RoundedRectangle(cornerRadius: Socle.M.radius))
+            }
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+            Menu {
+                ForEach(Social.networks) { n in
+                    Menu(n.name) {
+                        ForEach(n.specs) { sp in
+                            Button("\(L.t("soc." + sp.kind)) · \(sp.w) × \(sp.h)") { store.apply(Social.settings(sp)) }
+                        }
+                    }
+                }
+            } label: {
+                Text(L.t("preset.social")).socle(Socle.T.button).foregroundStyle(Socle.C.textStrong)
                     .frame(maxWidth: .infinity, minHeight: Socle.M.sizeControlLg)
                     .background(Socle.C.control, in: RoundedRectangle(cornerRadius: Socle.M.radius))
             }

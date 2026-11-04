@@ -26,6 +26,36 @@ s.cropAnchor = .topLeft; p = Engine.plan(width: 4000, height: 3000, s); check(p.
 s = Settings(); s.rotateOn = true; s.rotation = .cw
 p = Engine.plan(width: 4000, height: 3000, s); check(p.rotatedW == 3000 && p.outH == 1920, "rotation 90° échange les côtés : \(p.outW)×\(p.outH)")
 s = Settings(); s.resizeOn = false
+// --- Recadrage manuel
+s = Settings(); s.resizeOn = false; s.cropOn = true; s.cropRatio = .manual; s.cropRect = NormRect(x: 0.25, y: 0.1, w: 0.5, h: 0.4)
+p = Engine.plan(width: 4000, height: 3000, s)
+check(p.crop == CGRect(x: 1000, y: 300, width: 2000, height: 1200) && p.outW == 2000 && p.outH == 1200, "cadre libre : \(p.crop)")
+s.cropLock = .square; p = Engine.plan(width: 4000, height: 3000, s)
+check(p.outW == p.outH && p.outW == 1200 && p.crop.midX == 2000, "cadre verrouillé 1:1 : \(p.crop)")
+s.cropRect = NormRect(); s.cropLock = .r169; p = Engine.plan(width: 3000, height: 4000, s)
+check(p.outW == 3000 && p.outH == 1688, "16:9 dans une photo portrait : \(p.outW)×\(p.outH)")
+var nr = NormRect(x: 0.2, y: 0.2, w: 0.4, h: 0.4).resized(.br, to: CGPoint(x: 5, y: 5), lock: nil, aspect: 4.0 / 3)
+check(nr.x == 0.2 && nr.y == 0.2 && nr.w == 0.8 && nr.h == 0.8, "poignée libre bornée à l'image : \(nr)")
+nr = NormRect(x: 0.2, y: 0.2, w: 0.4, h: 0.4).resized(.l, to: CGPoint(x: 0.9, y: 0.5), lock: nil, aspect: 1)
+check(abs(nr.w - NormRect.minSize) < 1e-9 && abs(nr.x + nr.w - 0.6) < 1e-9, "poignée ne franchit pas le bord opposé : \(nr)")
+nr = NormRect(x: 0.3, y: 0.3, w: 0.2, h: 0.2).resized(.br, to: CGPoint(x: 0.9, y: 0.6), lock: 1, aspect: 1.5)
+check(abs(nr.w * 1.5 / nr.h - 1) < 1e-9 && nr.x + nr.w <= 1 && nr.y + nr.h <= 1, "poignée verrouillée garde le rapport : \(nr)")
+nr = NormRect.corner(from: CGPoint(x: 0.5, y: 0.5), to: CGPoint(x: 0.1, y: 0.9), lock: nil, aspect: 1)
+check(abs(nr.x - 0.1) < 1e-9 && abs(nr.y - 0.5) < 1e-9 && abs(nr.w - 0.4) < 1e-9 && abs(nr.h - 0.4) < 1e-9, "tracé d'un nouveau cadre vers le bas-gauche : \(nr)")
+nr = NormRect(x: 0.7, y: 0.7, w: 0.2, h: 0.2).moved(dx: 0.5, dy: -2)
+check(nr.x == 0.8 && nr.y == 0, "déplacement borné : \(nr)")
+
+// --- Réseaux sociaux : taille exacte pour toute photo
+for net in Social.networks {
+    for sp in net.specs {
+        for (w, h) in [(4000, 3000), (3000, 4000), (1500, 1500), (800, 600)] {
+            let q = Engine.plan(width: w, height: h, Social.settings(sp))
+            check(q.outW == sp.w && q.outH == sp.h, "\(net.name) \(sp.kind) pour \(w)×\(h) : \(q.outW)×\(q.outH)")
+        }
+    }
+}
+
+s = Settings(); s.resizeOn = false
 p = Engine.plan(width: 123, height: 77, s); check(p.outW == 123 && p.outH == 77, "sans opération, taille intacte")
 
 // --- Noms

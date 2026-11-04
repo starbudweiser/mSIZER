@@ -11,6 +11,7 @@ mSIZER is made by Starbudweiser & Claude Code (Anthropic). MIT License, © 2026 
 - Drop photos or folders, see a live before/after preview of the selected photo.
 - Resize (long side, width, height, percentage, fit in a box, fill a box), never enlarge, Lanczos quality.
 - Crop to a ratio (1:1, 4:3, 3:2, 16:9, 4:5, 9:16 or custom) with a chosen anchor.
+- Manual crop with free handles on the preview (optional ratio lock, one framing per photo, "apply to all").
 - Rotate 90°/180°, flip, EXIF orientation applied automatically.
 - Adjustments: auto enhance, brightness, contrast, saturation, sharpness, black and white.
 - Watermark: text or logo, nine positions, size and opacity.
@@ -19,6 +20,7 @@ mSIZER is made by Starbudweiser & Claude Code (Anthropic). MIT License, © 2026 
 - Rename with a pattern (`{name}`, `{n}`, `{date}`, `{w}`, `{h}`).
 - Destination: `mSIZER` subfolder, another folder, or replace the originals (they go to the Trash). Existing files are never overwritten.
 - Presets (Web, E-mail, Instagram, thumbnails, privacy…) and your own saved presets.
+- Social network presets (Instagram, Facebook, X, LinkedIn, YouTube, TikTok, Pinterest, Snapchat, WhatsApp, Discord, Twitch): posts, stories, profile pictures, banners at the exact size.
 - Languages: French, English, Spanish, Italian (follows the system language). Interface follows the Socle design system.
 - Automatic updates from GitHub releases (signature checked, never during a batch), with a manual check button.
 
