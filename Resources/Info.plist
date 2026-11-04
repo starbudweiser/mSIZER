@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>mSIZER</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+				<string>public.folder</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>mSIZER</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>fr.stephan.msizer</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>fr</string>
+		<string>en</string>
+		<string>es</string>
+		<string>it</string>
+	</array>
+	<key>CFBundleName</key>
+	<string>mSIZER</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.photography</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>mSIZER lit et écrit les photos que vous avez choisies.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>mSIZER lit et écrit les photos que vous avez choisies.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>mSIZER lit et écrit les photos que vous avez choisies.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>mSIZER lit et écrit les photos de vos disques externes.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>mSIZER lit et écrit les photos de vos partages réseau.</string>
+</dict>
+</plist>
