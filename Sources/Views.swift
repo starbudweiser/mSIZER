@@ -183,6 +183,42 @@ struct OpCard<Content: View>: View {
     }
 }
 
+
+/// Carte repliable (Format, Métadonnées, Destination) : en-tête cliquable avec le réglage actuel en résumé ; l'état est mémorisé.
+struct FoldCard<Content: View>: View {
+    let title: String
+    let key: String
+    let summary: String
+    @ViewBuilder var content: Content
+    @AppStorage private var open: Bool
+
+    init(title: String, key: String, summary: String, @ViewBuilder content: () -> Content) {
+        self.title = title; self.key = key; self.summary = summary; self.content = content()
+        _open = AppStorage(wrappedValue: false, "fold." + key)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Socle.M.space2_5) {
+            Button { open.toggle() } label: {
+                HStack(spacing: Socle.M.space2) {
+                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold)).rotationEffect(.degrees(open ? 90 : 0))
+                        .foregroundStyle(Socle.C.textMuted).frame(width: 12)
+                    Text(title).socle(Socle.T.title).foregroundStyle(Socle.C.textStrong)
+                    Spacer(minLength: Socle.M.space2)
+                    if !open { Text(summary).socle(Socle.T.monoSm).foregroundStyle(Socle.C.accentText).lineLimit(1) }
+                }
+                .contentShape(Rectangle())
+            }.buttonStyle(.plain)
+            if open { content }
+        }
+        .padding(Socle.M.space3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Socle.C.surface, in: RoundedRectangle(cornerRadius: Socle.M.radiusLg))
+        .overlay(RoundedRectangle(cornerRadius: Socle.M.radiusLg).stroke(Socle.C.border, lineWidth: 1))
+        .animation(.easeOut(duration: 0.15), value: open)
+    }
+}
+
 // MARK: - Fenêtre principale
 
 struct ContentView: View {
@@ -215,7 +251,7 @@ struct ContentView: View {
             BottomBar()
         }
         .background(Socle.C.bg)
-        .frame(minWidth: 1180, minHeight: 720)
+        .frame(minWidth: 1180, minHeight: 600)
         .environment(\.locale, L.locale)
         .background(WindowSetup())
         .overlay { if dropping { RoundedRectangle(cornerRadius: Socle.M.radiusLg).stroke(Socle.C.accent, lineWidth: 2).padding(6).allowsHitTesting(false) } }
@@ -240,7 +276,7 @@ struct WindowSetup: NSViewRepresentable {
             let pointer = NSEvent.mouseLocation
             let screen = NSScreen.screens.first { NSMouseInRect(pointer, $0.frame, false) } ?? NSScreen.main
             if let zone = screen?.visibleFrame {
-                w.setContentSize(NSSize(width: min(1500, zone.width - 40), height: zone.height - 60))
+                w.setContentSize(NSSize(width: min(1500, zone.width - 40), height: min(zone.height - 60, 900)))
             }
             w.socleCenter(); w.makeKeyAndOrderFront(nil)
         }
@@ -446,7 +482,7 @@ struct SettingsPanel: View {
                         AnchorPicker(selection: s.wmAnchor)
                     }
                 }
-                OpCard(title: L.t("op.format"), isOn: nil) {
+                FoldCard(title: L.t("op.format"), key: "format", summary: formatSummary) {
                     ChoiceGrid(options: OutFormat.allCases, selection: s.format, label: { $0.label }, minWidth: 58)
                     let f = store.settings.format
                     if f != .png && f != .tiff {
@@ -456,7 +492,7 @@ struct SettingsPanel: View {
                     }
                     Check(title: L.t("fmt.srgb"), help: L.t("fmt.srgb.help"), isOn: s.toSRGB)
                 }
-                OpCard(title: L.t("op.meta"), isOn: nil) {
+                FoldCard(title: L.t("op.meta"), key: "meta", summary: L.t("meta." + (store.settings.metaMode == .stripAll ? "strip" : store.settings.metaMode.rawValue))) {
                     ChoiceGrid(options: MetaMode.allCases, selection: s.metaMode, label: { L.t("meta." + ($0 == .stripAll ? "strip" : $0.rawValue)) }, minWidth: 100)
                 }
                 OpCard(title: L.t("op.rename"), isOn: s.renameOn) {
@@ -464,7 +500,7 @@ struct SettingsPanel: View {
                     Hint(L.t("ren.help"))
                     NumberRow(title: L.t("ren.start"), value: Binding(get: { Double(store.settings.startNumber) }, set: { store.settings.startNumber = max(0, Int($0)) }))
                 }
-                OpCard(title: L.t("op.output"), isOn: nil) {
+                FoldCard(title: L.t("op.output"), key: "output", summary: L.t("out." + store.settings.outputMode.rawValue)) {
                     ChoiceGrid(options: OutputMode.allCases, selection: s.outputMode, label: { L.t("out." + $0.rawValue) }, minWidth: 150)
                     switch store.settings.outputMode {
                     case .subfolder: Hint(L.t("out.subfolder.help"))
@@ -482,6 +518,16 @@ struct SettingsPanel: View {
             .padding(Socle.M.space3)
         }
         .background(Socle.C.bg)
+    }
+
+    private var formatSummary: String {
+        let st = store.settings
+        var out = st.format.label
+        if st.format != .png && st.format != .tiff {
+            out += " · \(Int(st.quality * 100)) %"
+            if st.maxKB > 0 { out += " · ≤ \(st.maxKB) Ko" }
+        }
+        return out
     }
 
     private func pickLogo() {
