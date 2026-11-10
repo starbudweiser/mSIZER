@@ -1,5 +1,7 @@
 # mSIZER
 
+[![Listed on OpenMacApps](https://openmacapps.com/badge.svg)](https://openmacapps.com/apps/msizer/)
+
 Batch photo editor for macOS: resize, crop, rotate, retouch, watermark, rename and convert hundreds of photos in a few clicks. A personal, simplified alternative to [Photo Bulk Editor](https://photobulkeditor.com/).
 
 ## About
