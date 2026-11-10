@@ -1,8 +1,12 @@
+<p align="center"><img src="assets/icon-1024.png" width="128" alt="mSIZER"></p>
+
 # mSIZER
 
-[![Listed on OpenMacApps](https://openmacapps.com/badge.svg)](https://openmacapps.com/apps/msizer/)
+[![Listed on OpenMacApps](https://openmacapps.com/badge.svg)](https://openmacapps.com/apps/msizer/) [![Latest release](https://img.shields.io/github/v/release/starbudweiser/mSIZER)](https://github.com/starbudweiser/mSIZER/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Batch photo editor for macOS: resize, crop, rotate, retouch, watermark, rename and convert hundreds of photos in a few clicks. A personal, simplified alternative to [Photo Bulk Editor](https://photobulkeditor.com/).
+
+🇬🇧 English · 🇫🇷 [Français](#français)
 
 ## About
 
@@ -27,9 +31,13 @@ mSIZER is made by Starbudweiser & Claude Code (Anthropic). MIT License, © 2026 
 - Languages: French, English, Spanish, Italian (follows the system language). Interface follows the Socle design system.
 - Automatic updates from GitHub releases (signature checked, never during a batch), with a manual check button.
 
-## Apple Silicon
+### Apple Silicon
 
 Apple Silicon only (arm64, tuned for the M family). Filters run on the GPU through Core Image / Metal, JPEG and HEIC decoding is hardware accelerated and reduced by the decoder when possible, and photos are processed in parallel on the performance cores only.
+
+## Install
+
+**[Download the latest notarized release](https://github.com/starbudweiser/mSIZER/releases/latest)**, unzip it and move **mSIZER.app** to your Applications folder. Requires **macOS 15 Sequoia on Apple Silicon** or later.
 
 ## Build
 
@@ -39,3 +47,30 @@ Apple Silicon only (arm64, tuned for the M family). Filters run on the GPU throu
 ```
 
 Requires macOS 15 or later and the Swift toolchain.
+
+## Languages
+
+English, French, Spanish and Italian. The app follows your Mac's preferred language automatically (English if it is none of these four).
+
+## Support
+
+Bug reports and suggestions: [GitHub Issues](https://github.com/starbudweiser/mSIZER/issues).
+
+## License
+
+Released under the **MIT License**, © 2026 Starbudweiser. See [LICENSE](LICENSE).
+
+---
+
+## Français
+
+Éditeur de photos par lots pour macOS : redimensionner, recadrer, pivoter, retoucher, filigraner, renommer et convertir des centaines de photos en quelques clics. Une alternative personnelle et simplifiée à Photo Bulk Editor, sans lien avec lui.
+
+- Aperçu avant/après en direct, redimensionnement Lanczos, recadrage par ratio ou à la main, réglages, filigrane texte ou logo.
+- Nombreux formats de sortie (JPEG, PNG, WebP, HEIC, AVIF, TIFF, PDF…), taille de fichier maximale, métadonnées conservées ou effacées.
+- Préréglages (web, e-mail, réseaux sociaux) et préréglages personnels. Gardez une copie de vos originaux avant de les remplacer.
+- Apple Silicon uniquement (filtres sur le GPU, traitement parallèle).
+
+Installation : téléchargez la [dernière version notarisée](https://github.com/starbudweiser/mSIZER/releases/latest), décompressez-la et placez **mSIZER.app** dans Applications (macOS 15 Sequoia ou plus récent).
+
+Interface en français, anglais, espagnol et italien, choisie d'après la langue du Mac (anglais sinon). Licence MIT, © 2026 Starbudweiser. Questions et bugs : [Issues GitHub](https://github.com/starbudweiser/mSIZER/issues).
