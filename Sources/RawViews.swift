@@ -189,7 +189,13 @@ struct RawSettingsPanel: View {
                 }
                 OpCard(title: L.t("raw.view.loupe"), isOn: nil) {
                     Check(title: L.t("raw.autoadv"), isOn: s.autoAdvance)
-                    Button(L.t("raw.trash")) { askTrash() }.buttonStyle(SocleButtonStyle(.secondary)).disabled(store.rejectedCount == 0 || store.converting)
+                    Button(L.t("raw.trash")) { askTrash() }.buttonStyle(SocleButtonStyle(.secondary)).disabled(store.rejectedCount == 0 || store.converting || store.trashing)
+                    if store.trashing {
+                        HStack(spacing: 8) {
+                            ProgressBar(value: store.trashProgress).frame(maxWidth: .infinity)
+                            Text("\(Int(store.trashProgress * 100)) %").socle(Socle.T.mono).foregroundStyle(Socle.C.accentText)
+                        }
+                    }
                     Hint(L.t("raw.keys"))
                 }
                 Hint(L.t("raw.credit")).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)

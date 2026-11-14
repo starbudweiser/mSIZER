@@ -272,16 +272,29 @@ final class RawStore: ObservableObject {
 
     var rejectedCount: Int { items.reduce(0) { $0 + ($1.flag == .reject ? 1 : 0) } }
 
+    @Published var trashing = false
+    @Published var trashProgress = 0.0
+
     func trashRejected() {
+        guard !trashing else { return }
         let rej = items.filter { $0.flag == .reject }
         guard !rej.isEmpty else { return }
-        NSWorkspace.shared.recycle(rej.map(\.url)) { trashed, _ in
-            let gone = Set(trashed.keys.map(\.path))
-            Task { @MainActor in
+        trashing = true; trashProgress = 0
+        let urls = rej.map(\.url)
+        Task.detached(priority: .userInitiated) {
+            var gone = Set<String>()
+            for (i, u) in urls.enumerated() {
+                if (try? FileManager.default.trashItem(at: u, resultingItemURL: nil)) != nil { gone.insert(u.path) }
+                let p = Double(i + 1) / Double(urls.count)
+                await MainActor.run { RawStore.shared.trashProgress = p }
+            }
+            let done = gone
+            await MainActor.run {
                 let s = RawStore.shared
-                s.items.removeAll { gone.contains($0.url.path) }
-                for p in gone { s.marks.removeValue(forKey: p) }
+                s.items.removeAll { done.contains($0.url.path) }
+                for p in done { s.marks.removeValue(forKey: p) }
                 s.reindex(); s.refresh()
+                s.trashing = false; s.trashProgress = 0
             }
         }
     }
