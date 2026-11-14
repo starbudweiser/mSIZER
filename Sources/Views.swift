@@ -229,6 +229,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             HStack(spacing: Socle.M.space3) {
                 Text(branded: "mSIZER").socle(Socle.T.heading).foregroundStyle(Socle.C.textStrong)
+                SocleSegmented(options: AppMode.allCases, selection: store.mode, label: { L.t("mode." + $0.rawValue) }, tone: { _ in .strong }) { store.mode = $0 }
                 Spacer()
                 Button { store.showSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 15, weight: .medium)) }
                     .buttonStyle(IconButtonStyle()).help(L.t("menu.settings")).accessibilityLabel(L.t("menu.settings"))
@@ -236,19 +237,25 @@ struct ContentView: View {
             .padding(.horizontal, Socle.M.space3).frame(height: Socle.M.sizeBar)
             .background(Socle.C.surfaceRaised)
             Rectangle().fill(Socle.C.border).frame(height: 1)
-            HStack(spacing: 0) {
-                SettingsPanel().frame(width: 380)
-                Rectangle().fill(Socle.C.border).frame(width: 1)
-                if store.items.isEmpty {
-                    EmptyState().frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ListPanel().frame(width: 300)
+            if store.mode == .raw {
+                RawModule()
+                Rectangle().fill(Socle.C.border).frame(height: 1)
+                RawBottomBar()
+            } else {
+                HStack(spacing: 0) {
+                    SettingsPanel().frame(width: 380)
                     Rectangle().fill(Socle.C.border).frame(width: 1)
-                    PreviewPanel().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if store.items.isEmpty {
+                        EmptyState().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ListPanel().frame(width: 300)
+                        Rectangle().fill(Socle.C.border).frame(width: 1)
+                        PreviewPanel().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
+                Rectangle().fill(Socle.C.border).frame(height: 1)
+                BottomBar()
             }
-            Rectangle().fill(Socle.C.border).frame(height: 1)
-            BottomBar()
         }
         .background(Socle.C.bg)
         .frame(minWidth: 1180, minHeight: 600)
@@ -258,7 +265,7 @@ struct ContentView: View {
         .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
             for p in providers {
                 _ = p.loadObject(ofClass: URL.self) { url, _ in
-                    if let url { Task { @MainActor in Store.shared.add([url]) } }
+                    if let url { Task { @MainActor in Store.route([url]) } }
                 }
             }
             return true
@@ -692,11 +699,11 @@ struct UpdateSection: View {
                 if case .available(let v) = updater.state {
                     Button(L.t("upd.install", v)) { Task { await updater.install() } }
                         .buttonStyle(SocleButtonStyle(.primary)).lineLimit(1).frame(width: 220)
-                        .disabled(Store.shared.processing)
+                        .disabled(Store.shared.processing || RawStore.shared.converting)
                 }
             }
             Hint(status)
-            if case .available = updater.state, Store.shared.processing { Hint(L.t("upd.busy")) }
+            if case .available = updater.state, Store.shared.processing || RawStore.shared.converting { Hint(L.t("upd.busy")) }
         }
     }
 }

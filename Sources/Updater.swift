@@ -62,7 +62,7 @@ final class Updater: ObservableObject {
     /// Télécharge la nouvelle version, vérifie sa signature, puis remplace l'appli et la relance.
     func install() async {
         guard case .available = state, let url = assetURL else { return }
-        guard !Store.shared.processing else { return }            // jamais pendant un traitement
+        guard !(Store.shared.processing || RawStore.shared.converting) else { return }            // jamais pendant un traitement
         state = .downloading
         do {
             let work = FileManager.default.temporaryDirectory.appendingPathComponent("mSIZER-update-\(UUID().uuidString)")
@@ -75,7 +75,7 @@ final class Updater: ObservableObject {
             try await Self.run("/usr/bin/ditto", ["-x", "-k", zip.path, out.path])
             let app = out.appendingPathComponent("mSIZER.app")
             try await Self.verify(app)
-            guard !Store.shared.processing else { state = .available(version: availableVersion); return }   // un traitement a démarré entre-temps
+            guard !(Store.shared.processing || RawStore.shared.converting) else { state = .available(version: availableVersion); return }   // un traitement a démarré entre-temps
             try Self.swapAndRelaunch(new: app, work: work)
         } catch {
             state = .failed(error.localizedDescription)

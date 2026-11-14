@@ -140,6 +140,65 @@ check(ico.url.flatMap(size).map { $0 == (256, 256) } ?? false, "ICO 256×256 : \
 s.format = .original; s.resizeOn = true
 check(Engine.process(src, index: 0, s, Engine.prepare(s)).url?.pathExtension == "jpg", "Original garde le JPEG")
 
+// --- RAW → DNG : capteur synthétique écrit puis relu par LibRaw (décodeur indépendant), pixel pour pixel
+setenv("OMP_NUM_THREADS", "1", 1)
+func synthSensor(_ w: Int, _ h: Int) -> [UInt16] {
+    var px = [UInt16](repeating: 0, count: w * h)
+    var seed: UInt32 = 12345
+    for y in 0..<h { for x in 0..<w {
+        seed = seed &* 1664525 &+ 1013904223
+        let noise = Int(seed >> 24) & 15
+        var v = 200 + (x * 3 + y * 2) % 3000 + noise
+        if y % 97 == 5 { v = x % 2 == 0 ? 0 : 32768 }            // sauts de 32768 : catégorie 16 de JPEG sans perte
+        if y % 101 == 7 { v = Int(seed >> 16) }                  // bruit pleine échelle
+        px[y * w + x] = UInt16(truncatingIfNeeded: v)
+    } }
+    return px
+}
+for (w, h) in [(512, 512), (515, 301), (1000, 700), (256, 256), (64, 40)] {
+    for compressed in [true, false] {
+        let px = synthSensor(w, h)
+        var info = DNGInfo()
+        info.rawW = w; info.rawH = h; info.visibleW = w; info.visibleH = h
+        info.cfaDim = 2; info.cfa = [0, 1, 1, 2]; info.black = [64, 66, 66, 68]; info.white = 4095
+        info.asShot = [0.5, 1, 0.7]; info.colorMatrix = [0.7, -0.2, -0.1, -0.3, 1.1, 0.2, -0.1, 0.1, 0.6]; info.orientation = 6
+        var meta = RawMeta(); meta.make = "Testmaker"; meta.model = "Synth 1"; meta.iso = 400; meta.shutter = 0.004; meta.aperture = 2.8; meta.focal = 35
+        let url = outDir.appendingPathComponent("synth-\(w)x\(h)-\(compressed).dng")
+        let pv = (w >= 256) ? { () -> DNGPreview? in
+            let j = outDir.appendingPathComponent("pv.jpg"); makeImage(j, 120, 80)
+            return (try? Data(contentsOf: j)).map { DNGPreview(jpeg: $0, width: 120, height: 80) } }() : nil
+        do {
+            try px.withUnsafeBufferPointer { b in
+                try DNGWriter.write(to: url, sensor: RawFile.Sensor(pixels: b.baseAddress!, width: w, height: h, stride: w), info: info, meta: meta, preview: pv,
+                                    opts: DNGOptions(compressed: compressed, rating: 4))
+            }
+            let f = try RawFile(url: url)
+            try f.unpack()
+            guard let t = f.sensor else { check(false, "DNG \(w)×\(h) : pas de capteur"); continue }
+            check(t.width == w && t.height == h, "DNG \(w)×\(h) : dimensions \(t.width)×\(t.height)")
+            var same = t.width == w && t.height == h
+            if same { for r in 0..<h where memcmp(t.pixels + r * t.stride, px.withUnsafeBufferPointer { $0.baseAddress! + r * w }, w * 2) != 0 { same = false; break } }
+            if !same {
+                var shown = 0
+                for r in 0..<min(h, t.height) { for c in 0..<min(w, t.width) where t.pixels[r * t.stride + c] != px[r * w + c] && shown < 4 { print("  diff r\(r) c\(c) : attendu \(px[r * w + c]) lu \(t.pixels[r * t.stride + c])"); shown += 1 } }
+            }
+            check(same, "DNG \(w)×\(h) \(compressed ? "compressé" : "brut") : pixels identiques")
+            let m = f.meta, d = try f.dngInfo()
+            check(m.make == "Testmaker" && m.model == "Synth 1" && m.iso == 400, "DNG métadonnées : \(m.make) \(m.model) ISO \(m.iso)")
+            check(d.cfa == [0, 1, 1, 2] && d.white == 4095 && d.orientation == 6, "DNG CFA/blanc/orientation : \(d.cfa) \(d.white) \(d.orientation)")
+            check(d.black.count == 4 && abs(d.black[0] - 64) < 1 && abs(d.black[3] - 68) < 1, "DNG noir : \(d.black)")
+        } catch { check(false, "DNG \(w)×\(h) \(compressed) : \(error)") }
+    }
+}
+// Table de Huffman : 17 catégories, longueurs ≤ 16, code préfixe
+do {
+    var hist = [Int](repeating: 0, count: 17); for i in 0..<17 { hist[i] = i < 6 ? 1_000_000 >> i : (i == 16 ? 1 : 3) }
+    let t = LJPEG.HuffTable(hist: hist)
+    check(t.vals.count == 17 && t.len.allSatisfy { $0 >= 1 && $0 <= 16 }, "Huffman : longueurs \(t.len)")
+    var kraft = 0.0; for l in t.len { kraft += pow(0.5, Double(l)) }
+    check(kraft <= 1.0, "Huffman : inégalité de Kraft \(kraft)")
+}
+
 // --- Traductions : mêmes clés dans les quatre langues
 let fr = Set(L.tables["fr"]!.keys)
 for lang in ["en", "es", "it"] {

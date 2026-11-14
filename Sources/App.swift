@@ -15,7 +15,7 @@ struct MsizerApp: App {
                 Button(L.t("menu.about")) { About.show() }
             }
             CommandGroup(replacing: .newItem) {
-                Button(L.t("menu.add")) { Store.shared.pickFiles() }.keyboardShortcut("o")
+                Button(L.t("menu.add")) { if Store.shared.mode == .raw { RawStore.shared.pickFiles() } else { Store.shared.pickFiles() } }.keyboardShortcut("o")
             }
             CommandGroup(replacing: .appSettings) {
                 Button(L.t("menu.settings")) { Store.shared.showSettings = true }.keyboardShortcut(",")
@@ -32,14 +32,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Socle.apply()
         // Mise à jour : une recherche par jour, installée seulement quand aucun traitement ne tourne.
         timer = Timer.scheduledTimer(withTimeInterval: 600, repeats: true) { _ in
-            Task { @MainActor in Updater.shared.tick(busy: Store.shared.processing) }
+            Task { @MainActor in Updater.shared.tick(busy: Store.shared.processing || RawStore.shared.converting) }
         }
-        Task { @MainActor in Updater.shared.tick(busy: Store.shared.processing) }
+        Task { @MainActor in Updater.shared.tick(busy: Store.shared.processing || RawStore.shared.converting) }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        Task { @MainActor in Store.shared.add(urls) }
+        Task { @MainActor in Store.route(urls) }
     }
 }

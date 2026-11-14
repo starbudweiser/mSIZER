@@ -11,9 +11,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Puces Apple Silicon uniquement : code natif arm64 réglé pour la famille M (apple-m1 et suivantes).
 # libwebp (Homebrew : brew install webp) est liée statiquement : rien à installer chez l'utilisateur.
 WEBP="$(brew --prefix libwebp 2>/dev/null || echo /opt/homebrew)"
+# LibRaw (décodage RAW → DNG) : compilée par build_libraw.sh à partir des sources Homebrew (brew install libraw), sans OpenMP.
+./build_libraw.sh
 swiftc -O -swift-version 5 -parse-as-library -target arm64-apple-macos15 -Xcc -mcpu=apple-m1 -target-cpu apple-m1 \
-  -Xlinker -w -import-objc-header Sources/Bridge.h -Xcc -I"$WEBP/include" \
-  -o "$APP/Contents/MacOS/mSIZER" Sources/*.swift "$WEBP/lib/libwebp.a" "$WEBP/lib/libsharpyuv.a"
+  -Xlinker -w -import-objc-header Sources/Bridge.h -Xcc -I"$WEBP/include" -Xcc -Ibuild/vendor/include \
+  -o "$APP/Contents/MacOS/mSIZER" Sources/*.swift "$WEBP/lib/libwebp.a" "$WEBP/lib/libsharpyuv.a" \
+  build/vendor/libraw.a /opt/homebrew/lib/libjpeg.a -lc++ -lz
 
 # Icône : sources dans assets/ (régénérer avec « swift assets/make_icon.swift assets/icon-1024.png » puis iconutil).
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"

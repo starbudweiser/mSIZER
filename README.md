@@ -27,6 +27,7 @@ mSIZER is made by Starbudweiser & Claude Code (Anthropic). MIT License, © 2026 
 - Destination: `mSIZER` subfolder, another folder, or replace the originals (they go to the Trash). Existing files are never overwritten.
 - Presets (Web, E-mail, Instagram, thumbnails, privacy…) and your own saved presets.
 - Output formats: JPEG, PNG, WebP, HEIC, AVIF, JPEG 2000, TIFF, GIF, BMP, TGA, PSD, PDF, OpenEXR, ICO, ICNS (WebP through a statically linked libwebp; build needs `brew install webp`).
+- **RAW → DNG module** (second tab): lossless batch conversion of RW2 (Panasonic), CR2/CR3, NEF, ARW, RAF, ORF, PEF and 1,000+ cameras to DNG (sensor data copied as is, lossless JPEG compression, embedded preview, ratings written to the DNG), verified pixel by pixel on demand. About 30 files per second on an M-series Mac. Includes a culling viewer: grid and loupe on the embedded JPEG previews, histogram, EXIF, star ratings, pick/reject flags, filters, keyboard shortcuts, rejected files to the Trash. RAW decoding by [LibRaw](https://www.libraw.org) (CDDL 1.0), built without OpenMP by `build_libraw.sh` from the Homebrew sources (`brew install libraw` once).
 - Social network presets (Instagram, Facebook, X, LinkedIn, YouTube, TikTok, Pinterest, Snapchat, WhatsApp, Discord, Twitch): posts, stories, profile pictures, banners at the exact size.
 - Languages: French, English, Spanish, Italian (follows the system language). Interface follows the Socle design system.
 - Automatic updates from GitHub releases (signature checked, never during a batch), with a manual check button.
@@ -68,6 +69,7 @@ Released under the **MIT License**, © 2026 Starbudweiser. See [LICENSE](LICENSE
 
 - Aperçu avant/après en direct, redimensionnement Lanczos, recadrage par ratio ou à la main, réglages, filigrane texte ou logo.
 - Nombreux formats de sortie (JPEG, PNG, WebP, HEIC, AVIF, TIFF, PDF…), taille de fichier maximale, métadonnées conservées ou effacées.
+- **Module RAW → DNG** (second onglet) : conversion par lots, sans perte, des RAW (RW2 Panasonic, CR2/CR3, NEF, ARW, RAF, ORF, PEF…) vers le DNG, environ 30 fichiers par seconde, avec visionneuse de dérushage (grille, loupe, histogramme, étoiles, retenue/rejet, raccourcis clavier).
 - Préréglages (web, e-mail, réseaux sociaux) et préréglages personnels. Gardez une copie de vos originaux avant de les remplacer.
 - Apple Silicon uniquement (filtres sur le GPU, traitement parallèle).
 

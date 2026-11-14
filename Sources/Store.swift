@@ -17,6 +17,7 @@ final class Store: ObservableObject {
         persist(); schedulePreview()
     } }
     @Published var showAfter = true
+    @Published var mode: AppMode = AppMode(rawValue: UserDefaults.standard.string(forKey: "appMode") ?? "") ?? .photos { didSet { UserDefaults.standard.set(mode.rawValue, forKey: "appMode") } }
     @Published var presets: [Preset] = []
     @Published var processing = false
     @Published var progress = 0.0
@@ -85,6 +86,12 @@ final class Store: ObservableObject {
     }
 
     // MARK: Liste
+
+    /// Dépôt de fichiers : les RAW vont au module RAW → DNG, le reste aux photos.
+    static func route(_ urls: [URL]) {
+        if shared.mode == .raw || (!urls.isEmpty && urls.allSatisfy { RawEngine.isRaw($0) }) { shared.mode = .raw; RawStore.shared.add(urls) }
+        else { shared.add(urls) }
+    }
 
     func add(_ urls: [URL]) {
         let known = Set(items.map(\.url.path))

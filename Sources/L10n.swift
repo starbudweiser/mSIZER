@@ -16,7 +16,9 @@ enum L {
 
     static func photos(_ n: Int) -> String { t(n == 1 ? "list.one" : "list.many", n) }
 
-    static let tables: [String: [String: String]] = ["fr": fr, "en": en, "es": es, "it": it]
+    static let tables: [String: [String: String]] = [
+        "fr": fr.merging(LRaw.fr) { a, _ in a }, "en": en.merging(LRaw.en) { a, _ in a },
+        "es": es.merging(LRaw.es) { a, _ in a }, "it": it.merging(LRaw.it) { a, _ in a }]
 
     private static let fr: [String: String] = [
         "app.tagline": "Redimensionnez, recadrez, filigranez et convertissez vos photos par lots, en quelques clics.",
