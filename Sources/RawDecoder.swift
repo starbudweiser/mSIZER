@@ -63,6 +63,9 @@ final class RawFile {
 
     deinit { libraw_close(lr); munmap(map, size) }
 
+    /// Octets du fichier RAW d'origine (projection mémoire, valide jusqu'à la destruction).
+    var original: UnsafeRawBufferPointer { UnsafeRawBufferPointer(start: map, count: size) }
+
     private func str(_ p: UnsafePointer<CChar>?) -> String {
         guard let p else { return "" }
         return String(cString: p).trimmingCharacters(in: .whitespacesAndNewlines)

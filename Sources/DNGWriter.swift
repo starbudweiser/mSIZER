@@ -17,6 +17,46 @@ struct DNGInfo {
 struct DNGOptions {
     var compressed = true
     var rating: Int?          // −1 rejeté, 0…5 étoiles ; nil : pas de note
+    var original: OriginalRaw?
+}
+
+/// RAW d'origine incorporé (format d'Adobe : taille BE, table des décalages BE, blocs de 64 Ko compressés en zlib).
+struct OriginalRaw {
+    let name: String
+    let size: Int
+    let blocks: [Data]
+    let md5: [UInt8]
+
+    init(name: String, bytes: UnsafeRawBufferPointer) {
+        self.name = name; size = bytes.count
+        let n = (bytes.count + 65535) / 65536
+        var out = [Data](repeating: Data(), count: n)
+        out.withUnsafeMutableBufferPointer { buf in
+            let p = buf.baseAddress!
+            DispatchQueue.concurrentPerform(iterations: n) { i in
+                let off = i * 65536, len = min(65536, bytes.count - off)
+                var cap = compressBound(uLong(len))
+                var dst = [UInt8](repeating: 0, count: Int(cap))
+                let r = compress2(&dst, &cap, bytes.baseAddress!.assumingMemoryBound(to: UInt8.self) + off, uLong(len), 1)
+                p[i] = r == Z_OK ? Data(dst[0..<Int(cap)]) : Data()
+            }
+        }
+        blocks = out
+        var digest = [UInt8](repeating: 0, count: 16)
+        _ = CC_MD5(bytes.baseAddress, CC_LONG(bytes.count), &digest)
+        md5 = digest
+    }
+
+    /// Table : taille d'origine puis décalages de chaque bloc (et de la fin).
+    var header: [UInt8] {
+        func be(_ v: Int) -> [UInt8] { [UInt8((v >> 24) & 255), UInt8((v >> 16) & 255), UInt8((v >> 8) & 255), UInt8(v & 255)] }
+        var h = be(size)
+        var off = 4 * (blocks.count + 2)
+        h += be(off)
+        for b in blocks { off += b.count; h += be(off) }
+        return h
+    }
+    var totalBytes: Int { 4 * (blocks.count + 2) + blocks.reduce(0) { $0 + $1.count } }
 }
 
 struct DNGPreview { let jpeg: Data; let width: Int; let height: Int }
@@ -99,7 +139,7 @@ enum DNGWriter {
         if compressed { strips = LJPEG.encodeTiles(pix: sensor.pixels, stride: sensor.stride, width: w, height: h, tile: tileSize) }
 
         // 2. Étiquettes (deux passes : les tailles ne dépendent pas des décalages).
-        func make(exifOff: Int, subOff: Int, previewOff: Int, stripOffs: [Int]) -> (ifd0: [Tag], exif: [Tag], sub: [Tag]) {
+        func make(exifOff: Int, subOff: Int, previewOff: Int, stripOffs: [Int], originalOff: Int = 0) -> (ifd0: [Tag], exif: [Tag], sub: [Tag]) {
             let cd = info.cfaDim
             var t: [Tag] = [
                 long(254, [0]), long(256, [w]), long(257, [h]), short(258, [16]),
@@ -132,6 +172,11 @@ enum DNGWriter {
                 t += [long(273, stripOffs), long(278, [h]), long(279, [w * h * 2])]
             }
             t.append(byte(700, Array(xmp(rating: opts.rating).utf8)))
+            if let o = opts.original {
+                t.append(ascii(50827, o.name))
+                t.append(Tag(id: 50828, type: 7, count: UInt32(o.totalBytes), data: le32(UInt32(originalOff))))   // valeur hors-ligne : décalage
+                t.append(byte(50973, o.md5))
+            }
             var e: [Tag] = [undef(36864, Array("0231".utf8))]
             if meta.shutter > 0 { e.append(rational(33434, [Double(meta.shutter)], den: 1_000_000)) }
             if meta.aperture > 0 { e.append(rational(33437, [Double(meta.aperture)], den: 10)) }
@@ -148,7 +193,7 @@ enum DNGWriter {
             }
             return (t, e, s)
         }
-        let probe = make(exifOff: 0, subOff: 0, previewOff: 0, stripOffs: [Int](repeating: 0, count: compressed ? strips.count : 1))
+        let probe = make(exifOff: 0, subOff: 0, previewOff: 0, stripOffs: [Int](repeating: 0, count: compressed ? strips.count : 1), originalOff: 0)
         let s0 = size(probe.ifd0), sE = size(probe.exif), sS = preview == nil ? 0 : size(probe.sub)
         let exifOff = 8 + s0, subOff = exifOff + sE
         var cursor = subOff + sS
@@ -156,7 +201,9 @@ enum DNGWriter {
         if let p = preview { cursor += (p.jpeg.count + 1) & ~1 }
         var offs: [Int] = []
         if compressed { for s in strips { offs.append(cursor); cursor += (s.count + 1) & ~1 } } else { offs = [cursor]; cursor += w * h * 2 }
-        let final = make(exifOff: exifOff, subOff: subOff, previewOff: previewOff, stripOffs: offs)
+        var originalOff = 0
+        if let o = opts.original { originalOff = cursor; cursor += o.totalBytes }
+        let final = make(exifOff: exifOff, subOff: subOff, previewOff: previewOff, stripOffs: offs, originalOff: originalOff)
 
         var head: [UInt8] = [0x49, 0x49, 42, 0] + le32(8)
         head += serialize(final.ifd0, at: 8)
@@ -197,11 +244,43 @@ enum DNGWriter {
                 }
             }
         }
+        if let o = opts.original {                         // tout est déjà de longueur paire : le décalage tombe juste
+            let h = o.header
+            h.withUnsafeBytes { put($0.baseAddress!, h.count) }
+            for b in o.blocks { b.withUnsafeBytes { put($0.baseAddress!, b.count) } }
+        }
         close(fd)
         guard ok else { try? FileManager.default.removeItem(at: tmp); throw RawError.write(String(cString: strerror(errno))) }
         if FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.removeItem(at: url) }
         guard rename(tmp.path, url.path) == 0 else { try? FileManager.default.removeItem(at: tmp); throw RawError.write(String(cString: strerror(errno))) }
         return cursor
+    }
+
+    /// Relit le RAW d'origine incorporé dans un DNG (nil s'il n'y en a pas) : même format que le convertisseur Adobe.
+    static func extractOriginal(from url: URL) -> Data? {
+        guard let d = try? Data(contentsOf: url, options: .alwaysMapped), d.count > 16, d[0] == 0x49 else { return nil }
+        func u16(_ o: Int) -> Int { Int(d[o]) | Int(d[o + 1]) << 8 }
+        func u32(_ o: Int) -> Int { u16(o) | u16(o + 2) << 16 }
+        let ifd = u32(4)
+        guard ifd + 2 < d.count else { return nil }
+        for i in 0..<u16(ifd) {
+            let e = ifd + 2 + 12 * i
+            guard u16(e) == 50828 else { continue }
+            let base = u32(e + 8)
+            func be(_ o: Int) -> Int { Int(d[base + o]) << 24 | Int(d[base + o + 1]) << 16 | Int(d[base + o + 2]) << 8 | Int(d[base + o + 3]) }
+            let size = be(0), n = (size + 65535) / 65536
+            var out = Data(capacity: size)
+            for k in 0..<n {
+                let a = base + be(4 + 4 * k), z = base + be(8 + 4 * k)
+                var len = uLongf(min(65536, size - k * 65536))
+                var buf = [UInt8](repeating: 0, count: Int(len))
+                let r = d.withUnsafeBytes { uncompress(&buf, &len, $0.baseAddress!.assumingMemoryBound(to: UInt8.self) + a, uLong(z - a)) }
+                if r != Z_OK { return nil }
+                out.append(contentsOf: buf)
+            }
+            return out
+        }
+        return nil
     }
 
     static func exifDate(_ d: Date) -> String {

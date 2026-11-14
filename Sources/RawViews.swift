@@ -163,6 +163,7 @@ struct RawSettingsPanel: View {
                         ChoiceGrid(options: [0, 1024, 1600, 2560], selection: s.previewMax, label: { $0 == 0 ? L.t("raw.dng.preview.none") : "\($0) px" }, minWidth: 64)
                     }
                     Check(title: L.t("raw.dng.rating"), help: L.t("raw.dng.rating.help"), isOn: s.embedRating)
+                    Check(title: L.t("raw.dng.embed"), help: L.t("raw.dng.embed.help"), isOn: s.embedOriginal)
                     Check(title: L.t("raw.dng.verify"), help: L.t("raw.dng.verify.help"), isOn: s.verify)
                     Hint(L.t("raw.dng.copy"))
                 }

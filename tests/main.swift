@@ -190,6 +190,26 @@ for (w, h) in [(512, 512), (515, 301), (1000, 700), (256, 256), (64, 40)] {
         } catch { check(false, "DNG \(w)×\(h) \(compressed) : \(error)") }
     }
 }
+// RAW d'origine incorporé : relu octet pour octet, empreinte MD5 présente, DNG toujours lisible
+do {
+    var raw = [UInt8](repeating: 0, count: 200_123); var sd: UInt32 = 7
+    for i in 0..<raw.count { sd = sd &* 1664525 &+ 1013904223; raw[i] = i < 70_000 ? UInt8(i % 251) : UInt8(sd >> 24) }
+    let w = 300, h = 260
+    let px = synthSensor(w, h)
+    var info = DNGInfo(); info.rawW = w; info.rawH = h; info.visibleW = w; info.visibleH = h
+    info.cfaDim = 2; info.cfa = [0, 1, 1, 2]; info.black = [64, 64, 64, 64]; info.white = 4095
+    var meta = RawMeta(); meta.make = "Testmaker"; meta.model = "Synth 1"
+    let url = outDir.appendingPathComponent("embed.dng")
+    let orig = raw.withUnsafeBytes { OriginalRaw(name: "ORIG.RW2", bytes: $0) }
+    check(orig.md5.count == 16 && orig.blocks.count == 4, "RAW incorporé : \(orig.blocks.count) blocs")
+    try px.withUnsafeBufferPointer { b in
+        try DNGWriter.write(to: url, sensor: RawFile.Sensor(pixels: b.baseAddress!, width: w, height: h, stride: w), info: info, meta: meta, preview: nil,
+                            opts: DNGOptions(compressed: true, rating: nil, original: orig))
+    }
+    check(DNGWriter.extractOriginal(from: url) == Data(raw), "RAW incorporé relu à l'identique")
+    let f = try RawFile(url: url); try f.unpack()
+    check(f.sensor?.width == w, "DNG avec RAW incorporé toujours lisible")
+} catch { check(false, "RAW incorporé : \(error)") }
 // Table de Huffman : 17 catégories, longueurs ≤ 16, code préfixe
 do {
     var hist = [Int](repeating: 0, count: 17); for i in 0..<17 { hist[i] = i < 6 ? 1_000_000 >> i : (i == 16 ? 1 : 3) }

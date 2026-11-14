@@ -3,6 +3,8 @@ import Foundation
 
 enum LRaw {
     static let fr: [String: String] = [
+        "raw.dng.embed": "Incorporer le RAW d'origine",
+        "raw.dng.embed.help": "Comme l'option du convertisseur Adobe : le DNG contient aussi le fichier d'origine, extractible plus tard. Le fichier pèse presque le double.",
         "mode.photos": "Photos", "mode.raw": "RAW → DNG",
         "raw.empty.title": "Déposez vos fichiers RAW ici",
         "raw.empty.body": "RW2 (Panasonic), CR2, CR3, NEF, ARW, RAF, ORF, PEF et plus de 1 000 boîtiers, ou des dossiers entiers. Vos RAW d'origine ne sont jamais modifiés.",
@@ -46,6 +48,8 @@ enum LRaw {
     ]
 
     static let en: [String: String] = [
+        "raw.dng.embed": "Embed the original RAW",
+        "raw.dng.embed.help": "Like Adobe's converter option: the DNG also contains the original file, which can be extracted later. The file is almost twice as large.",
         "mode.photos": "Photos", "mode.raw": "RAW → DNG",
         "raw.empty.title": "Drop your RAW files here",
         "raw.empty.body": "RW2 (Panasonic), CR2, CR3, NEF, ARW, RAF, ORF, PEF and over 1,000 cameras, or whole folders. Your original RAW files are never modified.",
@@ -89,6 +93,8 @@ enum LRaw {
     ]
 
     static let es: [String: String] = [
+        "raw.dng.embed": "Incorporar el RAW original",
+        "raw.dng.embed.help": "Como la opción del convertidor de Adobe: el DNG contiene también el archivo original, que se puede extraer después. El archivo pesa casi el doble.",
         "mode.photos": "Fotos", "mode.raw": "RAW → DNG",
         "raw.empty.title": "Suelte aquí sus archivos RAW",
         "raw.empty.body": "RW2 (Panasonic), CR2, CR3, NEF, ARW, RAF, ORF, PEF y más de 1.000 cámaras, o carpetas enteras. Sus RAW originales nunca se modifican.",
@@ -132,6 +138,8 @@ enum LRaw {
     ]
 
     static let it: [String: String] = [
+        "raw.dng.embed": "Incorpora il RAW originale",
+        "raw.dng.embed.help": "Come l'opzione del convertitore Adobe: il DNG contiene anche il file originale, estraibile in seguito. Il file pesa quasi il doppio.",
         "mode.photos": "Foto", "mode.raw": "RAW → DNG",
         "raw.empty.title": "Trascina qui i tuoi file RAW",
         "raw.empty.body": "RW2 (Panasonic), CR2, CR3, NEF, ARW, RAF, ORF, PEF e oltre 1.000 fotocamere, oppure intere cartelle. I RAW originali non vengono mai modificati.",

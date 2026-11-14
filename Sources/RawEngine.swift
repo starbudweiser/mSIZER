@@ -9,6 +9,7 @@ struct RawConvertOptions {
     var previewMax = 1600          // 0 : sans aperçu
     var verify = false
     var rating: Int?
+    var embedOriginal = false
 }
 
 enum RawEngine {
@@ -56,7 +57,8 @@ enum RawEngine {
         let info = try f.dngInfo()
         let meta = f.meta
         let pv = preview(of: f, maxSide: o.previewMax, dngOrientation: info.orientation)
-        let bytes = try DNGWriter.write(to: dst, sensor: sensor, info: info, meta: meta, preview: pv, opts: DNGOptions(compressed: o.compressed, rating: o.rating))
+        let bytes = try DNGWriter.write(to: dst, sensor: sensor, info: info, meta: meta, preview: pv, opts: DNGOptions(compressed: o.compressed, rating: o.rating,
+                                                                                                  original: o.embedOriginal ? OriginalRaw(name: src.lastPathComponent, bytes: f.original) : nil))
         if o.verify {
             do { try verify(dst, against: sensor) } catch { try? FileManager.default.removeItem(at: dst); throw error }
         }

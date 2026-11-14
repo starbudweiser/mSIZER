@@ -22,6 +22,24 @@ struct RawSettings: Codable, Equatable {
     var conflict: RawConflict = .number
     var scope: RawScope = .kept
     var autoAdvance = true
+    var embedOriginal = false
+
+    init() {}
+    /// Lecture tolérante : un réglage ajouté dans une version ultérieure ne fait pas perdre les autres.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = RawSettings()
+        compressed = try c.decodeIfPresent(Bool.self, forKey: .compressed) ?? d.compressed
+        previewMax = try c.decodeIfPresent(Int.self, forKey: .previewMax) ?? d.previewMax
+        verify = try c.decodeIfPresent(Bool.self, forKey: .verify) ?? d.verify
+        embedRating = try c.decodeIfPresent(Bool.self, forKey: .embedRating) ?? d.embedRating
+        dest = try c.decodeIfPresent(RawDest.self, forKey: .dest) ?? d.dest
+        folder = try c.decodeIfPresent(String.self, forKey: .folder) ?? d.folder
+        conflict = try c.decodeIfPresent(RawConflict.self, forKey: .conflict) ?? d.conflict
+        scope = try c.decodeIfPresent(RawScope.self, forKey: .scope) ?? d.scope
+        autoAdvance = try c.decodeIfPresent(Bool.self, forKey: .autoAdvance) ?? d.autoAdvance
+        embedOriginal = try c.decodeIfPresent(Bool.self, forKey: .embedOriginal) ?? d.embedOriginal
+    }
 }
 
 struct RawItem: Identifiable, Equatable {
@@ -298,7 +316,7 @@ final class RawStore: ObservableObject {
         converting = true; progress = 0; summary = nil; summaryWarning = false; lastOutput = nil
         for it in list { if let i = index[it.id] { items[i].state = .pending } }
         let st = settings
-        let opts = RawConvertOptions(compressed: st.compressed, previewMax: st.previewMax, verify: st.verify, rating: nil)
+        let opts = RawConvertOptions(compressed: st.compressed, previewMax: st.previewMax, verify: st.verify, rating: nil, embedOriginal: st.embedOriginal)
         let t0 = Date()
         batch = Task.detached(priority: .userInitiated) {
             let jobs = Self.plan(list, st)
