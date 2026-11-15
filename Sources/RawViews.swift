@@ -196,9 +196,9 @@ struct RawSettingsPanel: View {
                             Text("\(Int(store.trashProgress * 100)) %").socle(Socle.T.mono).foregroundStyle(Socle.C.accentText)
                         }
                     }
-                    Hint(L.t("raw.keys"))
+                    Hint(L.t("raw.keys")).multilineTextAlignment(.center).frame(maxWidth: .infinity, alignment: .center)
                 }
-                Hint(L.t("raw.credit")).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
+                Hint(L.t("raw.credit")).multilineTextAlignment(.center).frame(maxWidth: .infinity, alignment: .center).padding(.horizontal, 4)
             }
             .padding(Socle.M.space3)
         }
