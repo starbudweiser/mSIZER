@@ -12,6 +12,8 @@ Batch photo editor for macOS: resize, crop, rotate, retouch, watermark, rename a
 
 mSIZER is made by Starbudweiser & Claude Code (Anthropic). MIT License, © 2026 Starbudweiser. Provided as is, without warranty: keep a copy of your originals before replacing them. Inspired by Photo Bulk Editor, not affiliated with it. See "About mSIZER" in the app menu.
 
+mSIZER is part of the **DESKTOP MAC TOOLKIT**, Starbudweiser's collection of macOS apps.
+
 ## Features
 
 - Drop photos or folders, see a live before/after preview of the selected photo.
