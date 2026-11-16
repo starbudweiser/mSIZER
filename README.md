@@ -14,6 +14,8 @@ mSIZER is made by Starbudweiser & Claude Code (Anthropic). MIT License, © 2026 
 
 mSIZER is part of the **DESKTOP MAC TOOLKIT**, Starbudweiser's collection of macOS apps.
 
+![The main window with six sample photos in the list, a live preview and the resize panel.](docs/screenshot.png)
+
 ## Features
 
 - Drop photos or folders, see a live before/after preview of the selected photo.
