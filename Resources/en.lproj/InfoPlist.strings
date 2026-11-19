@@ -1,0 +1,5 @@
+NSDesktopFolderUsageDescription = "mSIZER reads and writes the photos you have chosen.";
+NSDocumentsFolderUsageDescription = "mSIZER reads and writes the photos you have chosen.";
+NSDownloadsFolderUsageDescription = "mSIZER reads and writes the photos you have chosen.";
+NSNetworkVolumesUsageDescription = "mSIZER reads and writes the photos on your network shares.";
+NSRemovableVolumesUsageDescription = "mSIZER reads and writes the photos on your external drives.";

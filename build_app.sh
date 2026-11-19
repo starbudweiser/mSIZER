@@ -21,6 +21,8 @@ swiftc -O -swift-version 5 -parse-as-library -target arm64-apple-macos15 -Xcc -m
 # Icône : sources dans assets/ (régénérer avec « swift assets/make_icon.swift assets/icon-1024.png » puis iconutil).
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# Descriptions des autorisations dans les 4 langues
+for l in fr en es it; do mkdir -p "$APP/Contents/Resources/$l.lproj"; cp "Resources/$l.lproj/InfoPlist.strings" "$APP/Contents/Resources/$l.lproj/InfoPlist.strings"; done
 
 SIGN="/Volumes/SKYRIM/TOOLS/MAC/_tools/sign_app.sh"
 if [ -x "$SIGN" ]; then "$SIGN" "$APP"; else codesign --force --deep -s - "$APP"; fi

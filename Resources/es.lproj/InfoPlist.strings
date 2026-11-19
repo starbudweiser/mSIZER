@@ -1,0 +1,5 @@
+NSDesktopFolderUsageDescription = "mSIZER lee y escribe las fotos que has elegido.";
+NSDocumentsFolderUsageDescription = "mSIZER lee y escribe las fotos que has elegido.";
+NSDownloadsFolderUsageDescription = "mSIZER lee y escribe las fotos que has elegido.";
+NSNetworkVolumesUsageDescription = "mSIZER lee y escribe las fotos de tus recursos compartidos de red.";
+NSRemovableVolumesUsageDescription = "mSIZER lee y escribe las fotos de tus discos externos.";
