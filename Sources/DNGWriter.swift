@@ -289,9 +289,12 @@ enum DNGWriter {
         return String(format: "%04d:%02d:%02d %02d:%02d:%02d", Int(tmv.tm_year) + 1900, Int(tmv.tm_mon) + 1, Int(tmv.tm_mday), Int(tmv.tm_hour), Int(tmv.tm_min), Int(tmv.tm_sec))
     }
 
+    /// Remplissage du paquet XMP (comme Adobe) : Bridge et Camera Raw y écrivent leurs réglages sur place, sans réécrire tout le fichier.
+    static let xmpPadding = String(repeating: String(repeating: " ", count: 99) + "\n", count: 160)
+
     static func xmp(rating: Int?) -> String {
         let r = rating.map { " xmp:Rating=\"\($0)\"" } ?? ""
-        return "<?xpacket begin=\"\u{FEFF}\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?><x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" xmp:CreatorTool=\"mSIZER\"\(r)/></rdf:RDF></x:xmpmeta><?xpacket end=\"w\"?>"
+        return "<?xpacket begin=\"\u{FEFF}\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?><x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" xmp:CreatorTool=\"mSIZER\"\(r)/></rdf:RDF></x:xmpmeta>\n" + xmpPadding + "<?xpacket end=\"w\"?>"
     }
 }
 
