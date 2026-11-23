@@ -179,6 +179,7 @@ enum Anchor: Int, Codable, CaseIterable { case topLeft, top, topRight, left, cen
 enum WatermarkKind: String, Codable, CaseIterable { case text, image }
 enum OutputMode: String, Codable, CaseIterable { case subfolder, folder, replace }
 enum MetaMode: String, Codable, CaseIterable { case keep, noGPS, stripAll }
+enum BGFill: String, Codable, CaseIterable { case transparent, white, black, color, blur }
 
 struct Settings: Codable, Equatable {
     var resizeOn = true
@@ -194,6 +195,7 @@ struct Settings: Codable, Equatable {
     var cropAnchor: Anchor = .center
     var cropRect = NormRect()                // recadrage manuel (fractions de l'image tournée)
     var cropLock: CropLock = .free
+    var cropFace = false                     // recadre sur le visage détecté (sans visage : cadrage normal)
 
     var rotateOn = false
     var rotation: Rotation = .none
@@ -207,6 +209,13 @@ struct Settings: Codable, Equatable {
     var saturation: Double = 1               // 0 … 2
     var sharpen: Double = 0                  // 0 … 2
     var mono = false
+
+    var bgOn = false                         // suppression de l'arrière-plan (sujet détecté par Vision)
+    var bgFill: BGFill = .transparent
+    var bgR = 1.0, bgG = 1.0, bgB = 1.0      // couleur du fond (sRGB)
+    var bgBlur = 0.5                         // 0 … 1 : force du flou de fond
+    var bgShrink = 0.5                       // 0 … 3 : contraction du détourage
+    var bgFeather = 1.0                      // 0 … 4 : adoucissement des bords
 
     var watermarkOn = false
     var wmKind: WatermarkKind = .text
@@ -299,6 +308,7 @@ enum Social {
         var s = Settings()
         s.resizeOn = true; s.resizeMode = .fill; s.resizeValue = Double(spec.w); s.resizeValue2 = Double(spec.h); s.noEnlarge = false
         s.cropOn = true; s.cropRatio = .manual; s.cropLock = .output
+        s.cropFace = spec.kind == "profile"
         s.format = .jpeg; s.quality = 0.9; s.metaMode = .noGPS
         return s
     }

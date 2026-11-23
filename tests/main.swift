@@ -22,6 +22,16 @@ s.resizeMode = .fill
 p = Engine.plan(width: 4000, height: 3000, s); check(p.outW == 1000 && p.outH == 1000 && p.finalCrop != nil, "remplir : \(p.outW)×\(p.outH)")
 s = Settings(); s.cropOn = true; s.cropRatio = .square; s.resizeOn = false
 p = Engine.plan(width: 4000, height: 3000, s); check(p.outW == 3000 && p.outH == 3000 && p.crop.minX == 500, "recadrage 1:1 centré")
+do {   // recadrage sur le visage : carré centré sur un visage placé à droite, en haut
+    var f = Settings(); f.resizeOn = false; f.cropOn = true; f.cropRatio = .square; f.cropFace = true
+    let face = CGRect(x: 0.7, y: 0.2, width: 0.08, height: 0.12)
+    let q = Engine.plan(width: 4000, height: 3000, f, face: face)
+    check(q.crop.width == q.crop.height, "visage : carré")
+    check(abs(q.crop.midX - 0.74 * 4000) < 2, "visage : centré en x (\(q.crop.midX))")
+    check(q.crop.height < 3000 && q.crop.minY >= 0 && q.crop.maxX <= 4000, "visage : zoom et limites")
+    let none = Engine.plan(width: 4000, height: 3000, f)
+    check(none.crop.minX == 500, "sans visage : cadrage normal")
+}
 s.cropAnchor = .topLeft; p = Engine.plan(width: 4000, height: 3000, s); check(p.crop.minX == 0, "recadrage ancré à gauche")
 s = Settings(); s.rotateOn = true; s.rotation = .cw
 p = Engine.plan(width: 4000, height: 3000, s); check(p.rotatedW == 3000 && p.outH == 1920, "rotation 90° échange les côtés : \(p.outW)×\(p.outH)")
@@ -177,7 +187,14 @@ for (w, h) in [(512, 512), (515, 301), (1000, 700), (256, 256), (64, 40)] {
             guard let t = f.sensor else { check(false, "DNG \(w)×\(h) : pas de capteur"); continue }
             check(t.width == w && t.height == h, "DNG \(w)×\(h) : dimensions \(t.width)×\(t.height)")
             var same = t.width == w && t.height == h
-            if same { for r in 0..<h where memcmp(t.pixels + r * t.stride, px.withUnsafeBufferPointer { $0.baseAddress! + r * w }, w * 2) != 0 { same = false; break } }
+            if same {
+                px.withUnsafeBufferPointer { b in
+                    for r in 0..<h {
+                        let a = UnsafeRawPointer(t.pixels + r * t.stride), c = UnsafeRawPointer(b.baseAddress! + r * w)
+                        if memcmp(a, c, w * 2) != 0 { same = false; break }
+                    }
+                }
+            }
             if !same {
                 var shown = 0
                 for r in 0..<min(h, t.height) { for c in 0..<min(w, t.width) where t.pixels[r * t.stride + c] != px[r * w + c] && shown < 4 { print("  diff r\(r) c\(c) : attendu \(px[r * w + c]) lu \(t.pixels[r * t.stride + c])"); shown += 1 } }

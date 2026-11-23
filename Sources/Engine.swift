@@ -52,7 +52,7 @@ enum Engine {
 
     // MARK: Géométrie
 
-    static func plan(width: Int, height: Int, _ s: Settings) -> Plan {
+    static func plan(width: Int, height: Int, _ s: Settings, face: CGRect? = nil) -> Plan {
         var w = Double(width), h = Double(height)
         if s.rotateOn, s.rotation == .cw || s.rotation == .ccw { swap(&w, &h) }
         let ax = [0.0, 0.5, 1.0][s.cropAnchor.rawValue % 3], ay = [0.0, 0.5, 1.0][s.cropAnchor.rawValue / 3]
@@ -68,6 +68,7 @@ enum Engine {
             cw = max(1, min(w, cw)); ch = max(1, min(h, ch))
             crop = CGRect(x: ((w - cw) * ax).rounded(), y: ((h - ch) * ay).rounded(), width: cw, height: ch)
         }
+        if s.cropOn, s.cropFace, let f = face { crop = faceCrop(face: f, w: w, h: h, ratio: crop.width / crop.height) }
         let cw = crop.width, ch = crop.height
         var scale = 1.0
         let v = s.resizeValue, v2 = s.resizeValue2
@@ -93,6 +94,17 @@ enum Engine {
             }
         }
         return Plan(rotatedW: Int(w), rotatedH: Int(h), crop: crop, preW: preW, preH: preH, finalCrop: finalCrop, outW: outW, outH: outH)
+    }
+
+    /// Cadre de même rapport que le recadrage demandé, centré sur le visage (fraction de l'image, origine en haut à gauche),
+    /// de hauteur environ trois fois celle du visage, sans dépasser l'image.
+    static func faceCrop(face f: CGRect, w: Double, h: Double, ratio r: Double) -> CGRect {
+        let cx = (f.midX) * w, cy = (f.midY) * h
+        var ch = f.height * h * 3, cw = ch * r
+        if cw > w { cw = w; ch = cw / r }
+        if ch > h { ch = h; cw = ch * r }
+        cw = max(1, cw.rounded()); ch = max(1, ch.rounded())
+        return CGRect(x: max(0, min(w - cw, (cx - cw / 2).rounded())), y: max(0, min(h - ch, (cy - ch * 0.45).rounded())), width: cw, height: ch)
     }
 
     // MARK: Préparation (une fois par lot)
@@ -135,13 +147,14 @@ enum Engine {
         var props: [String: Any]
         var colorSpace: CGColorSpace
         var sourceType: UTType?
+        var note: String?                    // avertissement (aucun sujet / visage trouvé)
     }
 
-    private static func origin(_ ci: CIImage) -> CIImage {
+    static func origin(_ ci: CIImage) -> CIImage {
         ci.transformed(by: CGAffineTransform(translationX: -ci.extent.minX, y: -ci.extent.minY))
     }
 
-    private static func scaled(_ ci: CIImage, toW w: Int, h: Int) -> CIImage {
+    static func scaled(_ ci: CIImage, toW w: Int, h: Int) -> CIImage {
         let cw = ci.extent.width, ch = ci.extent.height
         if Int(cw) == w && Int(ch) == h { return ci }
         let sy = Double(h) / ch, sx = Double(w) / cw
@@ -158,7 +171,8 @@ enum Engine {
         guard pw > 0, ph > 0 else { throw EngineError.unreadable }
         let orient = props[kCGImagePropertyOrientation as String] as? Int ?? 1
         let (ow, oh) = orient >= 5 ? (ph, pw) : (pw, ph)
-        let p = plan(width: ow, height: oh, s)
+        var p = plan(width: ow, height: oh, s)
+        var note: String?
 
         var ci: CIImage
         let direct = s.resizeOn && !s.cropOn && s.resizeMode != .fill && p.scale < 1
@@ -184,6 +198,9 @@ enum Engine {
             case .none: break
             }
         }
+        if s.cropOn, s.cropFace {
+            if let f = Subject.face(in: ci) { p = plan(width: ow, height: oh, s, face: f) } else { note = L.t("face.none") }
+        }
         if s.cropOn {
             let r = p.crop, hh = ci.extent.height
             ci = origin(ci.cropped(to: CGRect(x: r.minX, y: hh - r.maxY, width: r.width, height: r.height)))
@@ -197,6 +214,12 @@ enum Engine {
             ci = scaled(ci, toW: max(1, Int(Double(p.outW) * k)), h: max(1, Int(Double(p.outH) * k)))
         }
 
+        // Le masque est calculé sur l'image non retouchée (meilleure détection), appliqué après les retouches.
+        var subjectMask: CIImage?
+        if s.bgOn {
+            subjectMask = Subject.mask(for: ci)
+            if subjectMask == nil { note = L.t("bg.none") }
+        }
         if s.adjustOn {
             if s.autoEnhance {
                 for f in ci.autoAdjustmentFilters(options: [.redEye: false]) {
@@ -210,11 +233,14 @@ enum Engine {
             }
             if s.sharpen > 0 { ci = ci.applyingFilter("CISharpenLuminance", parameters: [kCIInputSharpnessKey: s.sharpen]) }
         }
+        if let m = subjectMask { ci = Subject.composite(ci, mask: m, s) }
         if s.watermarkOn, let wm = prep.watermark { ci = stamp(ci, wm, s) }
 
         let w = Int(ci.extent.width), h = Int(ci.extent.height)
         let space: CGColorSpace = s.toSRGB ? srgb : (ci.colorSpace ?? srgb)
-        return Rendered(image: ci, width: w, height: h, props: props, colorSpace: space, sourceType: CGImageSourceGetType(src).flatMap { UTType($0 as String) })
+        var out = Rendered(image: ci, width: w, height: h, props: props, colorSpace: space, sourceType: CGImageSourceGetType(src).flatMap { UTType($0 as String) })
+        out.note = note
+        return out
     }
 
     private static func stamp(_ base: CIImage, _ wm: CIImage, _ s: Settings) -> CIImage {
@@ -345,7 +371,7 @@ enum Engine {
                 }
                 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                 let out = try write(data, dir: dir, stem: stem, ext: ext, replacing: s.outputMode == .replace ? url : nil)
-                return JobResult(url: out, bytesOut: data.count, error: nil, note: reached ? nil : L.t("err.limit"))
+                return JobResult(url: out, bytesOut: data.count, error: nil, note: reached ? r.note : L.t("err.limit"))
             } catch {
                 return JobResult(url: nil, bytesOut: 0, error: error.localizedDescription, note: nil)
             }

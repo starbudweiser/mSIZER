@@ -465,6 +465,7 @@ struct SettingsPanel: View {
                             NumberRow(title: "", value: s.cropH)
                         }
                     }
+                    Check(title: L.t("crop.face"), help: L.t("crop.face.help"), isOn: s.cropFace)
                     if store.settings.cropRatio != .manual {
                         HStack {
                             Text(L.t("crop.anchor")).socle(Socle.T.label).foregroundStyle(Socle.C.textMuted)
@@ -472,6 +473,26 @@ struct SettingsPanel: View {
                             AnchorPicker(selection: s.cropAnchor)
                         }
                     }
+                }
+                OpCard(title: L.t("op.bg"), isOn: s.bgOn) {
+                    ChoiceGrid(options: BGFill.allCases, selection: s.bgFill, label: { L.t("bg." + $0.rawValue) }, minWidth: 70)
+                    let st = store.settings
+                    if st.bgFill == .color {
+                        HStack {
+                            Text(L.t("bg.pick")).socle(Socle.T.label).foregroundStyle(Socle.C.textMuted)
+                            Spacer()
+                            ColorPicker("", selection: Binding(
+                                get: { Color(red: st.bgR, green: st.bgG, blue: st.bgB) },
+                                set: { c in let n = NSColor(c).usingColorSpace(.sRGB) ?? .white; store.settings.bgR = n.redComponent; store.settings.bgG = n.greenComponent; store.settings.bgB = n.blueComponent }),
+                                supportsOpacity: false).labelsHidden()
+                        }
+                    }
+                    if st.bgFill == .blur {
+                        SliderRow(title: L.t("bg.blurAmount"), value: s.bgBlur, range: 0...1) { String(format: "%.0f %%", $0 * 100) }
+                    }
+                    SliderRow(title: L.t("bg.shrink"), value: s.bgShrink, range: 0...3) { String(format: "%.1f", $0) }
+                    SliderRow(title: L.t("bg.feather"), value: s.bgFeather, range: 0...4) { String(format: "%.1f", $0) }
+                    Hint(L.t(st.bgFill == .transparent && st.format.flattensAlpha ? "bg.noalpha" : "bg.help"))
                 }
                 OpCard(title: L.t("op.rotate"), isOn: s.rotateOn) {
                     ChoiceGrid(options: Rotation.allCases, selection: s.rotation,

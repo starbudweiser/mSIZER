@@ -266,8 +266,14 @@ final class Store: ObservableObject {
             if Task.isCancelled { return }
             let res: (NSImage?, NSImage?, String) = await Task.detached(priority: .userInitiated) {
                 let prep = Engine.prepare(s)
-                guard let r = try? Engine.render(url, s, prep, previewMax: 1400),
-                      let cg = Engine.context.createCGImage(r.image, from: r.image.extent, format: .RGBA8, colorSpace: r.colorSpace) else { return (nil, nil, "") }
+                guard let r = try? Engine.render(url, s, prep, previewMax: 1400) else { return (nil, nil, "") }
+                var shown = r.image
+                if s.bgOn, s.bgFill == .transparent {      // transparence : damier (ou blanc si le format ne la garde pas)
+                    let under = s.format.flattensAlpha ? CIImage(color: .white)
+                        : CIImage(color: CIColor(red: 0.2, green: 0.2, blue: 0.2)).applyingFilter("CICheckerboardGenerator", parameters: ["inputWidth": 12, "inputColor0": CIColor(red: 0.30, green: 0.30, blue: 0.30), "inputColor1": CIColor(red: 0.42, green: 0.42, blue: 0.42), "inputCenter": CIVector(x: 0, y: 0)])
+                    shown = shown.composited(over: under.cropped(to: shown.extent))
+                }
+                guard let cg = Engine.context.createCGImage(shown, from: shown.extent, format: .RGBA8, colorSpace: r.colorSpace) else { return (nil, nil, "") }
                 let after = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
                 var before: NSImage?
                 if s.cropOn, s.cropRatio == .manual, s.rotateOn, s.rotation != .none || s.flipH || s.flipV {
